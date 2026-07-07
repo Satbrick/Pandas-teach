@@ -1,0 +1,2521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pandas Stockroom — Wesfarmers Practice Set</title>
+<style>
+  :root{
+    --paper:#EEF1EF;
+    --panel:#FFFFFF;
+    --ink:#152019;
+    --ink-soft:#4A5A50;
+    --green:#0B5B41;
+    --green-dark:#07402D;
+    --orange:#E8630A;
+    --line:#CBD4CE;
+    --code-bg:#0F1813;
+    --code-fg:#D7E4DB;
+    --pass:#0B7A47;
+    --fail:#B3341C;
+    --mono:ui-monospace,'SF Mono','Cascadia Code',Consolas,Menlo,monospace;
+    --cond:'Avenir Next Condensed','Arial Narrow',system-ui,sans-serif;
+    --body:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.55}
+
+  /* ---------- header ---------- */
+  header{
+    background:var(--green-dark);color:#EAF3EC;
+    padding:14px 22px;display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;
+    border-bottom:4px solid var(--orange);
+  }
+  header h1{font-family:var(--cond);font-weight:700;font-size:26px;letter-spacing:.08em;text-transform:uppercase}
+  header .sub{font-family:var(--mono);font-size:12px;opacity:.75}
+  header .progress{margin-left:auto;font-family:var(--mono);font-size:13px;background:rgba(255,255,255,.08);padding:4px 12px;border-radius:3px}
+
+  /* ---------- loading ---------- */
+  #loader{padding:60px 24px;max-width:640px;margin:0 auto;text-align:center}
+  #loader .docket{background:var(--panel);border:1px solid var(--line);padding:32px;box-shadow:0 2px 0 var(--line)}
+  #loader h2{font-family:var(--cond);text-transform:uppercase;letter-spacing:.1em;font-size:20px;margin-bottom:12px}
+  #loader p{color:var(--ink-soft);font-size:14px;margin-bottom:6px}
+  #loadlog{font-family:var(--mono);font-size:12px;color:var(--green);margin-top:16px;text-align:left;white-space:pre-line}
+  .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--orange);border-radius:50%;animation:sp .8s linear infinite;vertical-align:-2px;margin-right:8px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion: reduce){.spin{animation:none}}
+
+  /* ---------- layout ---------- */
+  #app{display:none;max-width:1280px;margin:0 auto;padding:18px;gap:18px}
+  #app.ready{display:grid;grid-template-columns:280px 1fr}
+  @media(max-width:900px){#app.ready{grid-template-columns:1fr}}
+
+  /* ---------- sidebar dockets ---------- */
+  aside .rail-title{font-family:var(--cond);text-transform:uppercase;letter-spacing:.12em;font-size:13px;color:var(--ink-soft);margin:2px 0 10px}
+  .rail-sec{
+    font-family:var(--cond);text-transform:uppercase;letter-spacing:.1em;font-size:11.5px;font-weight:700;
+    color:#fff;background:var(--green);padding:4px 12px;margin:14px 0 7px;
+  }
+  .rail-sec:first-child{margin-top:0}
+  .docket-item{
+    width:100%;text-align:left;background:var(--panel);border:1px solid var(--line);
+    border-left:4px solid var(--line);padding:9px 12px;margin-bottom:7px;cursor:pointer;
+    display:flex;align-items:center;gap:10px;font-family:var(--body);
+  }
+  .docket-item:hover{border-color:var(--green)}
+  .docket-item.active{border-left-color:var(--orange);border-color:var(--green)}
+  .docket-item .sku{font-family:var(--mono);font-size:11px;color:var(--ink-soft);min-width:52px}
+  .docket-item .t{font-size:13.5px;font-weight:600;flex:1}
+  .docket-item .dot{width:9px;height:9px;border-radius:50%;background:var(--line);flex:none}
+  .docket-item.passed .dot{background:var(--pass)}
+  .docket-item.tried .dot{background:var(--orange)}
+  .docket-item:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
+
+  /* ---------- main panel ---------- */
+  .card{background:var(--panel);border:1px solid var(--line);margin-bottom:16px}
+  .card-head{
+    display:flex;align-items:center;gap:14px;padding:12px 18px;border-bottom:1px solid var(--line);
+    background:linear-gradient(to bottom,#FAFBFA,#F1F4F2);
+  }
+  .card-head .sku{font-family:var(--mono);font-size:12px;background:var(--ink);color:#fff;padding:2px 8px;letter-spacing:.05em}
+  .card-head h2{font-family:var(--cond);text-transform:uppercase;letter-spacing:.06em;font-size:20px;flex:1}
+  .tag{font-family:var(--mono);font-size:11px;color:var(--green);border:1px solid var(--green);padding:1px 8px;border-radius:10px;white-space:nowrap}
+  .barcode{display:flex;gap:2px;height:18px;align-items:stretch}
+  .barcode i{display:block;width:2px;background:var(--ink)}
+  .barcode i:nth-child(2n){width:1px;opacity:.55}
+  .barcode i:nth-child(3n){width:3px}
+
+  .card-body{padding:18px}
+  .statement p{margin-bottom:10px}
+  .statement code, .hintbox code{font-family:var(--mono);font-size:13px;background:#E7EDE9;padding:1px 5px;border-radius:3px}
+  .statement ul{margin:0 0 10px 22px}
+  .statement li{margin-bottom:4px}
+  .spec{font-family:var(--mono);font-size:12.5px;background:#F3F6F4;border:1px dashed var(--line);padding:10px 14px;margin:12px 0;color:var(--ink-soft)}
+
+  /* ---------- editor ---------- */
+  .editor-wrap{border:1px solid var(--ink);background:var(--code-bg)}
+  .editor-bar{display:flex;align-items:center;padding:6px 12px;background:#1A2A20;color:#8FA898;font-family:var(--mono);font-size:11.5px;gap:12px}
+  .editor-bar .fname{color:var(--code-fg)}
+  textarea#editor{
+    width:100%;min-height:220px;background:var(--code-bg);color:var(--code-fg);
+    border:0;resize:vertical;padding:14px;font-family:var(--mono);font-size:13.5px;line-height:1.6;
+    tab-size:4;
+  }
+  textarea#editor:focus{outline:2px solid var(--orange);outline-offset:-2px}
+
+  .btn-row{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;align-items:center}
+  button.btn{
+    font-family:var(--cond);text-transform:uppercase;letter-spacing:.08em;font-size:14px;font-weight:700;
+    padding:9px 20px;border:1px solid var(--ink);background:var(--panel);color:var(--ink);cursor:pointer;
+  }
+  button.btn:hover{background:#F0F3F1}
+  button.btn:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
+  button.btn.primary{background:var(--orange);border-color:var(--orange);color:#fff}
+  button.btn.primary:hover{background:#CF5605}
+  button.btn:disabled{opacity:.5;cursor:default}
+  .kbd-hint{font-family:var(--mono);font-size:11px;color:var(--ink-soft)}
+
+  /* ---------- output ---------- */
+  #output{margin-top:14px;display:none}
+  .verdict{font-family:var(--cond);text-transform:uppercase;letter-spacing:.1em;font-weight:700;font-size:15px;padding:8px 14px;border:1px solid}
+  .verdict.pass{color:var(--pass);border-color:var(--pass);background:#EAF6EF}
+  .verdict.fail{color:var(--fail);border-color:var(--fail);background:#FBEFEC}
+  pre.out{
+    font-family:var(--mono);font-size:12.5px;background:var(--code-bg);color:var(--code-fg);
+    padding:14px;overflow-x:auto;margin-top:8px;max-height:340px;overflow-y:auto;white-space:pre;
+  }
+  pre.out.err{color:#F2B8AC}
+  .out-label{font-family:var(--mono);font-size:11px;color:var(--ink-soft);margin-top:10px}
+
+  /* ---------- hint / solution ---------- */
+  .hintbox{display:none;background:#FFF8EF;border:1px solid #E8C79B;padding:12px 16px;margin-top:12px;font-size:14px}
+  .solbox{display:none;margin-top:12px}
+  .solbox pre{font-family:var(--mono);font-size:13px;background:var(--code-bg);color:var(--code-fg);padding:14px;overflow-x:auto}
+
+  /* ---------- schema drawer ---------- */
+  details.schema{border:1px solid var(--line);background:var(--panel);margin-bottom:16px}
+  details.schema summary{
+    cursor:pointer;padding:10px 18px;font-family:var(--cond);text-transform:uppercase;
+    letter-spacing:.08em;font-size:14px;font-weight:700;user-select:none;
+  }
+  details.schema .inner{padding:0 18px 16px}
+  details.schema pre{font-family:var(--mono);font-size:12px;background:#F3F6F4;padding:12px;overflow-x:auto;margin-top:8px}
+  .schema-note{font-size:13px;color:var(--ink-soft);margin-top:8px}
+  .preview-tabs{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .preview-tabs button{font-family:var(--mono);font-size:12px;padding:4px 12px;border:1px solid var(--line);background:var(--panel);cursor:pointer}
+  .preview-tabs button.on{background:var(--green);color:#fff;border-color:var(--green)}
+
+  /* ---------- mode tabs ---------- */
+  .mode-tabs{display:flex;gap:0;border:1px solid rgba(255,255,255,.35)}
+  .mode-tabs button{
+    font-family:var(--cond);text-transform:uppercase;letter-spacing:.1em;font-size:13px;font-weight:700;
+    padding:6px 18px;background:transparent;color:#DCE9E0;border:0;cursor:pointer;
+  }
+  .mode-tabs button.on{background:var(--orange);color:#fff}
+  .mode-tabs button:focus-visible{outline:2px solid #fff;outline-offset:-2px}
+
+  /* ---------- track tabs (top-level) ---------- */
+  .track-tabs{display:flex;gap:6px;margin-left:auto}
+  .track-tabs button{
+    font-family:var(--cond);text-transform:uppercase;letter-spacing:.1em;font-size:14px;font-weight:700;
+    padding:6px 20px;background:rgba(255,255,255,.08);color:#DCE9E0;border:1px solid rgba(255,255,255,.25);cursor:pointer;
+  }
+  .track-tabs button.on{background:#fff;color:var(--green-dark);border-color:#fff}
+  .track-tabs button:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
+  .subbar{background:var(--green);padding:0 22px;border-bottom:3px solid var(--orange)}
+  .subbar .mode-tabs{border:0}
+  .subbar .mode-tabs button{color:#CFE0D6}
+  .subbar .mode-tabs button.on{background:var(--orange);color:#fff}
+  header .progress{margin-left:18px}
+
+  /* ---------- lesson view ---------- */
+  #learn-card{display:none}
+  .lesson-body h3{font-family:var(--cond);text-transform:uppercase;letter-spacing:.07em;font-size:16px;margin:18px 0 8px;color:var(--green-dark)}
+  .lesson-body h3:first-child{margin-top:0}
+  .lesson-body p{margin-bottom:10px}
+  .lesson-body ul{margin:0 0 10px 22px}
+  .lesson-body li{margin-bottom:5px}
+  .lesson-body code{font-family:var(--mono);font-size:13px;background:#E7EDE9;padding:1px 5px;border-radius:3px}
+  .lesson-body pre.snippet{
+    font-family:var(--mono);font-size:12.5px;background:var(--code-bg);color:var(--code-fg);
+    padding:12px 14px;overflow-x:auto;margin:10px 0 14px;white-space:pre;
+  }
+  .gotcha{border-left:4px solid var(--orange);background:#FFF6EE;padding:10px 14px;margin:12px 0;font-size:13.5px}
+  .gotcha b{font-family:var(--cond);text-transform:uppercase;letter-spacing:.06em;font-size:12px;color:var(--orange);display:block;margin-bottom:2px}
+  textarea.learn-ed{
+    width:100%;min-height:150px;background:var(--code-bg);color:var(--code-fg);
+    border:0;resize:vertical;padding:14px;font-family:var(--mono);font-size:13.5px;line-height:1.6;tab-size:4;
+  }
+  textarea.learn-ed:focus{outline:2px solid var(--orange);outline-offset:-2px}
+
+  /* ---------- docs browser ---------- */
+  #docs-card{display:none}
+  #doc-search{
+    width:100%;padding:10px 14px;font-family:var(--mono);font-size:14px;
+    border:1px solid var(--ink);background:var(--panel);color:var(--ink);
+  }
+  #doc-search:focus{outline:2px solid var(--orange);outline-offset:-2px}
+  .doc-meta{font-family:var(--mono);font-size:11.5px;color:var(--ink-soft);margin:8px 0 12px}
+  .doc-meta a{color:var(--green)}
+  #doc-results{max-height:300px;overflow-y:auto;border:1px solid var(--line);margin-bottom:14px}
+  .doc-row{
+    display:block;width:100%;text-align:left;padding:7px 12px;border:0;border-bottom:1px solid var(--line);
+    background:var(--panel);cursor:pointer;font-family:var(--body);
+  }
+  .doc-row:hover{background:#F0F4F1}
+  .doc-row.on{background:#E5EFE9;border-left:4px solid var(--orange);padding-left:8px}
+  .doc-row .nm{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--green-dark)}
+  .doc-row .sm{font-size:12px;color:var(--ink-soft);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #doc-sig{font-family:var(--mono);font-size:13px;background:var(--ink);color:#fff;padding:8px 14px;white-space:pre-wrap;word-break:break-all;display:none}
+  #doc-body{
+    font-family:var(--mono);font-size:12.5px;background:#F7F9F8;border:1px solid var(--line);
+    padding:16px;overflow-x:auto;max-height:520px;overflow-y:auto;white-space:pre-wrap;display:none;
+  }
+
+  /* ---------- track cards ---------- */
+  .trk{display:none}
+  .snow{border-left:4px solid #2AA9E0;background:#EFF8FD;padding:10px 14px;margin:12px 0;font-size:13.5px}
+  .snow b{font-family:var(--cond);text-transform:uppercase;letter-spacing:.06em;font-size:12px;color:#1B7FB0;display:block;margin-bottom:2px}
+  .snow code{font-family:var(--mono);font-size:12.5px;background:#DCEFF9;padding:1px 5px;border-radius:3px}
+  table.res{border-collapse:collapse;font-family:var(--mono);font-size:12.5px;background:#fff}
+  table.res th{background:var(--green);color:#fff;text-align:left;padding:5px 10px;font-weight:600;white-space:nowrap}
+  table.res td{border:1px solid var(--line);padding:4px 10px;white-space:nowrap}
+  table.res tr:nth-child(2n) td{background:#F5F8F6}
+</style>
+</head>
+<body>
+
+<header>
+  <h1 id="app-title">Pandas Stockroom</h1>
+  <span class="sub" id="app-sub">Wesfarmers practice set &middot; mid-level</span>
+  <nav class="track-tabs" id="tracktabs">
+    <button data-track="pandas" class="on">Pandas</button>
+    <button data-track="plots">Plots</button>
+    <button data-track="sql">SQL</button>
+  </nav>
+  <span class="progress" id="progress">0 / 12 cleared</span>
+</header>
+<div class="subbar">
+  <nav class="mode-tabs" id="modetabs">
+    <button data-m="learn">Learn</button>
+    <button data-m="practice" class="on">Practice</button>
+    <button data-m="docs">Docs</button>
+  </nav>
+</div>
+
+<div id="loader">
+  <div class="docket">
+    <h2>Opening the stockroom</h2>
+    <p>Loading Python + pandas in your browser (Pyodide). First load takes ~15–30s.</p>
+    <p>Nothing leaves your machine — your code runs locally.</p>
+    <div id="loadlog"><span class="spin"></span>fetching runtime…</div>
+  </div>
+</div>
+
+<div id="app">
+  <aside>
+    <div class="rail-title">Problem dockets</div>
+    <div id="rail"></div>
+  </aside>
+
+  <main>
+    <details class="schema">
+      <summary>Data schema &amp; preview</summary>
+      <div class="inner">
+        <pre>sales      (~4,040 rows)  sale_id, date, store_id, product_id, units, unit_price, promo_flag
+stores     (30 rows)      store_id, brand, state, open_year
+products   (60 rows)      product_id, brand, category, product_name, cost_price
+forecasts  (108 rows)     month, brand, actual, forecast</pre>
+        <div class="schema-note">
+          Quirks baked in on purpose: <code>sales.unit_price</code> has NaNs, <code>sales</code> contains
+          exact duplicate rows, some products were never sold, and <code>sales</code> has no
+          <code>brand</code> column — you must merge for it. Unless a problem says otherwise,
+          drop rows with missing <code>unit_price</code> before computing revenue
+          (<code>revenue = units × unit_price</code>).
+        </div>
+        <div class="preview-tabs" id="ptabs">
+          <button data-t="sales">sales</button>
+          <button data-t="stores">stores</button>
+          <button data-t="products">products</button>
+          <button data-t="forecasts">forecasts</button>
+        </div>
+        <pre id="preview" style="display:none"></pre>
+      </div>
+    </details>
+
+    <div class="card" id="practice-card">
+      <div class="card-head">
+        <span class="sku" id="p-sku">SKU-01</span>
+        <h2 id="p-title">—</h2>
+        <span class="tag" id="p-topic">—</span>
+        <span class="barcode" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+      </div>
+      <div class="card-body">
+        <div class="statement" id="p-statement"></div>
+
+        <div class="editor-wrap">
+          <div class="editor-bar"><span class="fname" id="fname">attempt_01.py</span><span>pd, np, sales, stores, products, forecasts in scope</span></div>
+          <textarea id="editor" spellcheck="false" aria-label="Python code editor"></textarea>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn primary" id="run">Run &amp; check</button>
+          <button class="btn" id="hintbtn">Hint</button>
+          <button class="btn" id="solbtn">Solution</button>
+          <button class="btn" id="resetbtn">Reset code</button>
+          <span class="kbd-hint">Ctrl/Cmd + Enter to run</span>
+        </div>
+
+        <div class="hintbox" id="hintbox"></div>
+        <div class="solbox" id="solbox"><div class="out-label">reference solution (one of several valid approaches)</div><pre id="solcode"></pre></div>
+
+        <div id="output">
+          <div class="verdict" id="verdict"></div>
+          <div class="out-label" id="stdout-label" style="display:none">stdout</div>
+          <pre class="out" id="stdout" style="display:none"></pre>
+          <div class="out-label" id="repr-label" style="display:none">your result</div>
+          <pre class="out" id="repr" style="display:none"></pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="learn-card">
+      <div class="card-head">
+        <span class="sku" id="l-sku">MOD-01</span>
+        <h2 id="l-title">—</h2>
+        <span class="tag" id="l-topic">lesson</span>
+        <span class="barcode" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+      </div>
+      <div class="card-body">
+        <div class="lesson-body" id="l-body"></div>
+
+        <div class="editor-wrap" style="margin-top:16px">
+          <div class="editor-bar"><span class="fname">playground.py</span><span>same tables in scope — last expression echoes like a notebook</span></div>
+          <textarea class="learn-ed" id="l-editor" spellcheck="false" aria-label="Lesson playground editor"></textarea>
+        </div>
+        <div class="btn-row">
+          <button class="btn primary" id="l-run">Run</button>
+          <button class="btn" id="l-reset">Reset example</button>
+          <span class="kbd-hint">Ctrl/Cmd + Enter to run</span>
+        </div>
+        <div id="l-output" style="display:none">
+          <div class="out-label">output</div>
+          <pre class="out" id="l-out"></pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="docs-card">
+      <div class="card-head">
+        <span class="sku">REF</span>
+        <h2>API Reference</h2>
+        <span class="tag" id="doc-count">—</span>
+        <span class="barcode" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+      </div>
+      <div class="card-body">
+        <input id="doc-search" type="text" placeholder="Search the pandas API… e.g. merge, pivot, rolling, str.extract" autocomplete="off">
+        <div class="doc-meta" id="doc-meta">
+          Docstrings from the pandas build running in this page — identical source to the official API reference.
+          Narrative docs: <a href="https://pandas.pydata.org/docs/user_guide/index.html" target="_blank" rel="noopener">User Guide</a> ·
+          <a href="https://pandas.pydata.org/docs/reference/index.html" target="_blank" rel="noopener">online API reference</a>
+        </div>
+        <div id="doc-results"></div>
+        <div id="doc-sig"></div>
+        <pre id="doc-body"></pre>
+      </div>
+    </div>
+
+    <!-- ============ PLOTS TRACK ============ -->
+    <div class="card trk trk-plots" id="plots-practice-card">
+      <div class="card-head">
+        <span class="sku" id="pl-sku">PLOT-01</span>
+        <h2 id="pl-title">—</h2>
+        <span class="tag" id="pl-topic">—</span>
+        <span class="barcode" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+      </div>
+      <div class="card-body">
+        <div class="statement" id="pl-statement"></div>
+        <div class="editor-wrap">
+          <div class="editor-bar"><span class="fname" id="pl-fname">plot_01.py</span><span>pd, np, plt, sales, stores, products, forecasts in scope</span></div>
+          <textarea id="pl-editor" spellcheck="false" aria-label="Plot code editor"></textarea>
+        </div>
+        <div class="btn-row">
+          <button class="btn primary" id="pl-run">Run &amp; render</button>
+          <button class="btn" id="pl-sol-btn">Solution</button>
+          <button class="btn" id="pl-reset">Reset code</button>
+          <span class="kbd-hint">Ctrl/Cmd + Enter to run</span>
+        </div>
+        <div class="solbox" id="pl-solbox"><div class="out-label">reference solution</div><pre id="pl-solcode"></pre></div>
+        <div id="pl-output" style="display:none">
+          <div class="out-label" id="pl-outlabel">figure</div>
+          <div id="pl-figwrap" style="text-align:center;background:#fff;border:1px solid var(--line);padding:8px;margin-top:8px"></div>
+          <pre class="out err" id="pl-err" style="display:none"></pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="card trk trk-plots" id="plots-learn-card">
+      <div class="card-head">
+        <span class="sku" id="pll-sku">PMOD-01</span>
+        <h2 id="pll-title">—</h2>
+        <span class="tag">plotting</span>
+        <span class="barcode" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+      </div>
+      <div class="card-body">
+        <div class="lesson-body" id="pll-body"></div>
+        <div class="editor-wrap" style="margin-top:16px">
+          <div class="editor-bar"><span class="fname">plot_playground.py</span><span>edit and render — plt in scope</span></div>
+          <textarea class="learn-ed" id="pll-editor" spellcheck="false" aria-label="Plot lesson editor"></textarea>
+        </div>
+        <div class="btn-row">
+          <button class="btn primary" id="pll-run">Render</button>
+          <button class="btn" id="pll-reset">Reset example</button>
+          <span class="kbd-hint">Ctrl/Cmd + Enter to render</span>
+        </div>
+        <div id="pll-output" style="display:none">
+          <div class="out-label">figure</div>
+          <div id="pll-figwrap" style="text-align:center;background:#fff;border:1px solid var(--line);padding:8px;margin-top:8px"></div>
+          <pre class="out err" id="pll-err" style="display:none"></pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="card trk trk-plots" id="plots-docs-card">
+      <div class="card-head">
+        <span class="sku">REF</span><h2>Plotting quick reference</h2>
+        <span class="barcode" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+      </div>
+      <div class="card-body"><div class="lesson-body" id="pl-docs-body"></div></div>
+    </div>
+
+    <!-- ============ SQL TRACK ============ -->
+    <div class="card trk trk-sql" id="sql-practice-card">
+      <div class="card-head">
+        <span class="sku" id="sq-sku">SQL-01</span>
+        <h2 id="sq-title">—</h2>
+        <span class="tag" id="sq-topic">—</span>
+        <span class="barcode" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+      </div>
+      <div class="card-body">
+        <div class="statement" id="sq-statement"></div>
+        <div class="snow" id="sq-snow" style="display:none"></div>
+        <div class="editor-wrap">
+          <div class="editor-bar"><span class="fname">query.sql</span><span>tables: sales, stores, products, forecasts &middot; SQLite engine</span></div>
+          <textarea id="sq-editor" spellcheck="false" aria-label="SQL editor"></textarea>
+        </div>
+        <div class="btn-row">
+          <button class="btn primary" id="sq-run">Run &amp; check</button>
+          <button class="btn" id="sq-sol-btn">Solution</button>
+          <button class="btn" id="sq-reset">Reset</button>
+          <span class="kbd-hint">Ctrl/Cmd + Enter to run</span>
+        </div>
+        <div class="solbox" id="sq-solbox"><div class="out-label">reference solution (SQLite dialect)</div><pre id="sq-solcode"></pre></div>
+        <div id="sq-output" style="display:none">
+          <div class="verdict" id="sq-verdict"></div>
+          <div class="out-label" id="sq-outlabel" style="display:none">result</div>
+          <div id="sq-table" style="overflow-x:auto;margin-top:8px"></div>
+          <pre class="out err" id="sq-err" style="display:none"></pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="card trk trk-sql" id="sql-learn-card">
+      <div class="card-head">
+        <span class="sku" id="sql-sku">SMOD-01</span>
+        <h2 id="sql-l-title">—</h2>
+        <span class="tag">sql</span>
+        <span class="barcode" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+      </div>
+      <div class="card-body">
+        <div class="lesson-body" id="sql-l-body"></div>
+        <div class="editor-wrap" style="margin-top:16px">
+          <div class="editor-bar"><span class="fname">scratch.sql</span><span>run any query against the tables</span></div>
+          <textarea class="learn-ed" id="sql-l-editor" spellcheck="false" aria-label="SQL lesson editor"></textarea>
+        </div>
+        <div class="btn-row">
+          <button class="btn primary" id="sql-l-run">Run</button>
+          <button class="btn" id="sql-l-reset">Reset example</button>
+          <span class="kbd-hint">Ctrl/Cmd + Enter to run</span>
+        </div>
+        <div id="sql-l-output" style="display:none">
+          <div class="out-label">result</div>
+          <div id="sql-l-table" style="overflow-x:auto;margin-top:8px"></div>
+          <pre class="out err" id="sql-l-err" style="display:none"></pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="card trk trk-sql" id="sql-docs-card">
+      <div class="card-head">
+        <span class="sku">REF</span><h2>SQL reference &amp; Snowflake differences</h2>
+        <span class="barcode" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+      </div>
+      <div class="card-body"><div class="lesson-body" id="sql-docs-body"></div></div>
+    </div>
+  </main>
+</div>
+
+<script>
+/* =========================================================
+   Problems
+========================================================= */
+const STARTER = "# Tables in scope: sales, stores, products, forecasts\n# pandas as pd, numpy as np\n# Assign your answer to a variable named `result`\n\nresult = ...\n";
+
+/* =========================================================
+   Foundations — one new operation per step, building toward
+   the brand revenue league table (SKU-01 of the mid track)
+========================================================= */
+const FOUNDATIONS = [
+{
+  id:"F01", title:"Meet the data", topic:"shape / dtypes", tier:"foundation",
+  statement:`
+  <p><strong>Destination for this track:</strong> a revenue league table by brand. We get there one operation at a time, starting with knowing what we're holding.</p>
+  <p>Run <code>sales.info()</code> and <code>sales.head()</code> in your code (use <code>print(...)</code>) and look at the output. Then answer:</p>
+  <div class="spec">result: the shape of sales, exactly as .shape returns it (a tuple)</div>`,
+  hint:".shape is an attribute, not a method — no parentheses.",
+  solution:
+`result = sales.shape`
+},
+{
+  id:"F02", title:"Select columns", topic:"column selection", tier:"foundation",
+  statement:`
+  <p>Single brackets with a name → Series. Double brackets with a list → DataFrame. Here you want a DataFrame slice.</p>
+  <div class="spec">result: the first 10 rows of sales, only columns [product_id, units], original row order</div>`,
+  hint:"sales[['product_id','units']] gives the two-column frame; .head(10) trims it.",
+  solution:
+`result = sales[['product_id','units']].head(10)`
+},
+{
+  id:"F03", title:"Filter rows", topic:"boolean mask", tier:"foundation",
+  statement:`
+  <p>A comparison on a column produces a boolean Series — a mask. Putting the mask in <code>df[...]</code> (no extra brackets — you know why by now) keeps only the True rows.</p>
+  <div class="spec">result: an int — how many sales rows have units >= 5</div>`,
+  hint:"A mask's .sum() counts its True values — True is 1. Wrap in int(...).",
+  solution:
+`mask = sales['units'] >= 5
+result = int(mask.sum())`
+},
+{
+  id:"F04", title:"Two conditions", topic:"& with parentheses", tier:"foundation",
+  statement:`
+  <p>Combine masks with <code>&amp;</code> / <code>|</code>, each side in parentheses. Never <code>and</code>/<code>or</code>.</p>
+  <div class="spec">result: an int — rows where units >= 5 AND promo_flag is True</div>`,
+  hint:"(sales['units'] >= 5) & (sales['promo_flag']) — the boolean column works as a mask by itself.",
+  solution:
+`mask = (sales['units'] >= 5) & (sales['promo_flag'])
+result = int(mask.sum())`
+},
+{
+  id:"F05", title:"Sort & take the top", topic:"sort_values + head", tier:"foundation",
+  statement:`
+  <p>Find the 10 most expensive line items. Rows with missing <code>unit_price</code> can't compete — drop them first with <code>dropna(subset=...)</code>.</p>
+  <p>Sort by <code>unit_price</code> descending, breaking ties by <code>sale_id</code> ascending (always give sorts a deterministic tiebreak when you'll take a top-n).</p>
+  <div class="spec">result: DataFrame, columns [sale_id, unit_price], top 10 rows, fresh 0..9 RangeIndex</div>`,
+  hint:"sort_values(['unit_price','sale_id'], ascending=[False, True]) then .head(10), select the two columns, .reset_index(drop=True).",
+  solution:
+`result = (sales.dropna(subset=['unit_price'])
+       .sort_values(['unit_price','sale_id'], ascending=[False, True])
+       .head(10)[['sale_id','unit_price']]
+       .reset_index(drop=True))`
+},
+{
+  id:"F06", title:"Create a column", topic:"vectorised arithmetic", tier:"foundation",
+  statement:`
+  <p>The metric everything downstream uses: <code>revenue = units × unit_price</code>. Column arithmetic is element-wise — no loop, no apply.</p>
+  <p>Drop rows with missing <code>unit_price</code> first (NaN × anything = NaN, and it would silently vanish from the sum).</p>
+  <div class="spec">result: a float — total revenue across all valid rows, rounded to 2</div>`,
+  hint:"s = sales.dropna(subset=['unit_price']); then (s['units'] * s['unit_price']).sum().",
+  solution:
+`s = sales.dropna(subset=['unit_price'])
+result = round(float((s['units'] * s['unit_price']).sum()), 2)`
+},
+{
+  id:"F07", title:"Count the holes", topic:"isna", tier:"foundation",
+  statement:`
+  <p>Before dropping or filling missing data, you quantify it. <code>isna()</code> gives a boolean mask of the holes.</p>
+  <div class="spec">result: an int — number of NaN values in sales.unit_price</div>`,
+  hint:"sales['unit_price'].isna().sum() — same True-counting trick as F03.",
+  solution:
+`result = int(sales['unit_price'].isna().sum())`
+},
+{
+  id:"F08", title:"Count by category", topic:"value_counts", tier:"foundation",
+  statement:`
+  <p><code>value_counts()</code> is the fastest "how many of each?" — a one-column groupby-count in disguise, sorted most-common-first.</p>
+  <div class="spec">result: stores['brand'].value_counts() — a Series: brand → number of stores</div>`,
+  hint:"Exactly what it says: one method call on one column.",
+  solution:
+`result = stores['brand'].value_counts()`
+},
+{
+  id:"F09", title:"First groupby", topic:"groupby + sum", tier:"foundation",
+  statement:`
+  <p>Now combine F06's revenue column with a group: total revenue <em>per store</em>. This is the split-apply-combine pattern you'll use daily.</p>
+  <div class="spec">result: Series indexed by store_id — revenue sum per store, rounded to 2</div>`,
+  hint:"Make the revenue column on the NaN-dropped frame, then .groupby('store_id')['revenue'].sum().",
+  solution:
+`s = sales.dropna(subset=['unit_price']).copy()
+s['revenue'] = s['units'] * s['unit_price']
+result = s.groupby('store_id')['revenue'].sum().round(2)`
+},
+{
+  id:"F10", title:"First merge", topic:"merge on key", tier:"foundation",
+  statement:`
+  <p>Last building block: <code>sales</code> has no brand — it lives in <code>stores</code>. A merge on <code>store_id</code> attaches it to every sales row.</p>
+  <p>Merge the full sales table with <code>stores[['store_id','brand']]</code>, then count Bunnings rows.</p>
+  <div class="spec">result: an int — number of merged sales rows where brand == 'Bunnings'</div>
+  <p style="margin-top:10px">That's every ingredient of the league table. SKU-01 in the mid track now asks you to assemble them all — go there next.</p>`,
+  hint:"sales.merge(stores[['store_id','brand']], on='store_id'), then a mask on brand and .sum().",
+  solution:
+`m = sales.merge(stores[['store_id','brand']], on='store_id')
+result = int((m['brand'] == 'Bunnings').sum())`
+}
+];
+
+const MID_PROBLEMS = [
+{
+  id:"01", title:"Revenue league table", topic:"merge + groupby.agg",
+  statement:`
+  <p><code>sales</code> has no <code>brand</code> column. Build a brand-level league table.</p>
+  <ul>
+    <li>Drop rows where <code>unit_price</code> is NaN, compute <code>revenue = units × unit_price</code>.</li>
+    <li>Bring in <code>brand</code> from <code>stores</code>.</li>
+    <li>Group by brand: total revenue as column <code>revenue</code>, mean units per transaction as <code>avg_units</code>.</li>
+  </ul>
+  <div class="spec">result: DataFrame indexed by brand, columns [revenue, avg_units], rounded to 2, sorted by revenue descending</div>`,
+  hint:"Named aggregation keeps this clean: .agg(revenue=('revenue','sum'), avg_units=('units','mean')).",
+  solution:
+`s = sales.dropna(subset=['unit_price']).merge(stores[['store_id','brand']], on='store_id')
+s['revenue'] = s['units'] * s['unit_price']
+result = (s.groupby('brand')
+            .agg(revenue=('revenue','sum'), avg_units=('units','mean'))
+            .round(2)
+            .sort_values('revenue', ascending=False))`
+},
+{
+  id:"02", title:"Dead stock", topic:"anti-join",
+  statement:`
+  <p>Range planning wants to know which products have <strong>never sold a single unit</strong> — they exist in <code>products</code> but never appear in <code>sales</code>.</p>
+  <div class="spec">result: a plain Python list of product_ids, sorted ascending</div>`,
+  hint:"Either ~products.product_id.isin(sales.product_id), or a left merge with indicator=True and filter '_merge == \"left_only\"'.",
+  solution:
+`sold = sales['product_id'].unique()
+result = sorted(products.loc[~products['product_id'].isin(sold), 'product_id'].tolist())`
+},
+{
+  id:"03", title:"Store share of brand", topic:"groupby.transform",
+  statement:`
+  <p>For every store, compute its revenue as a <em>share of its own brand's total revenue</em>. Do it without merging an aggregate back on — this is what <code>transform</code> is for.</p>
+  <ul>
+    <li>Drop NaN <code>unit_price</code>, compute revenue, merge in <code>brand</code>.</li>
+    <li>Store revenue ÷ brand revenue (via <code>groupby('brand').transform('sum')</code> at store level).</li>
+  </ul>
+  <div class="spec">result: Series indexed by store_id — the TOP 5 stores by share, values rounded to 4</div>`,
+  hint:"Aggregate to store level first (groupby store+brand → revenue sum), then transform('sum') over brand on that store-level frame.",
+  solution:
+`s = sales.dropna(subset=['unit_price']).merge(stores[['store_id','brand']], on='store_id')
+s['revenue'] = s['units'] * s['unit_price']
+store_rev = s.groupby(['store_id','brand'])['revenue'].sum().reset_index()
+store_rev['share'] = store_rev['revenue'] / store_rev.groupby('brand')['revenue'].transform('sum')
+result = (store_rev.set_index('store_id')['share']
+          .sort_values(ascending=False).head(5).round(4))`
+},
+{
+  id:"04", title:"Brand × state matrix", topic:"pivot_table + margins",
+  statement:`
+  <p>Build the classic exec view: revenue by brand (rows) and state (columns).</p>
+  <ul>
+    <li>Standard revenue prep (drop NaN prices, merge brand <em>and</em> state from stores).</li>
+    <li>Missing combinations should show 0, not NaN.</li>
+    <li>Include row/column totals labelled <code>Total</code>.</li>
+  </ul>
+  <div class="spec">result: pivot_table, values=revenue sum, fill_value=0, margins=True, margins_name='Total', rounded to 2</div>`,
+  hint:"pivot_table(index='brand', columns='state', values='revenue', aggfunc='sum', fill_value=0, margins=True, margins_name='Total').",
+  solution:
+`s = sales.dropna(subset=['unit_price']).merge(stores[['store_id','brand','state']], on='store_id')
+s['revenue'] = s['units'] * s['unit_price']
+result = pd.pivot_table(s, index='brand', columns='state', values='revenue',
+                        aggfunc='sum', fill_value=0,
+                        margins=True, margins_name='Total').round(2)`
+},
+{
+  id:"05", title:"Bunnings weekly trend", topic:"resample + rolling",
+  statement:`
+  <p>Forecasting prep for one banner. For <strong>Bunnings only</strong>:</p>
+  <ul>
+    <li>Standard revenue prep, filter to Bunnings.</li>
+    <li>Set <code>date</code> as the index and resample to <strong>weekly</strong> (<code>'W'</code>) revenue sums → column <code>weekly_rev</code>.</li>
+    <li>Add a 4-week rolling mean → column <code>rolling_4w</code>.</li>
+    <li>Drop the leading rows where the rolling window is incomplete.</li>
+  </ul>
+  <div class="spec">result: DataFrame with DatetimeIndex, columns [weekly_rev, rolling_4w], .dropna(), rounded to 2</div>`,
+  hint:"resample('W')['revenue'].sum() gives a Series; .to_frame('weekly_rev') then assign the rolling column.",
+  solution:
+`s = sales.dropna(subset=['unit_price']).merge(stores[['store_id','brand']], on='store_id')
+s = s[s['brand'] == 'Bunnings'].copy()
+s['revenue'] = s['units'] * s['unit_price']
+weekly = s.set_index('date').resample('W')['revenue'].sum().to_frame('weekly_rev')
+weekly['rolling_4w'] = weekly['weekly_rev'].rolling(4).mean()
+result = weekly.dropna().round(2)`
+},
+{
+  id:"06", title:"Top 3 SKUs per brand", topic:"grouped top-n",
+  statement:`
+  <p>For each brand, find its <strong>3 highest-revenue products</strong>.</p>
+  <ul>
+    <li>Standard revenue prep; brand comes from <code>stores</code> (a product's own brand matches, but use the sales-side brand).</li>
+    <li>Aggregate revenue to (brand, product_id), then take the top 3 per brand.</li>
+  </ul>
+  <div class="spec">result: DataFrame, columns [brand, product_id, revenue] (revenue rounded to 2), sorted by brand asc then revenue desc, with a fresh 0..n RangeIndex</div>`,
+  hint:"Sort the aggregated frame by ['brand','revenue'] (revenue descending) then .groupby('brand').head(3). Finish with reset_index(drop=True).",
+  solution:
+`s = sales.dropna(subset=['unit_price']).merge(stores[['store_id','brand']], on='store_id')
+s['revenue'] = s['units'] * s['unit_price']
+agg = s.groupby(['brand','product_id'], as_index=False)['revenue'].sum()
+agg['revenue'] = agg['revenue'].round(2)
+result = (agg.sort_values(['brand','revenue'], ascending=[True, False])
+             .groupby('brand').head(3)
+             .reset_index(drop=True))`
+},
+{
+  id:"07", title:"Patch the price gaps", topic:"grouped fillna",
+  statement:`
+  <p>The NaNs in <code>unit_price</code> aren't random noise this time — impute them. Fill each missing <code>unit_price</code> with the <strong>median unit_price of that same product</strong> (not the global median — a Bunnings drill and a Kmart towel don't share a price level).</p>
+  <div class="spec">result: a single float — the mean of the fully-imputed unit_price column, rounded to 2</div>`,
+  hint:"groupby('product_id')['unit_price'].transform('median') gives an aligned Series to fillna with.",
+  solution:
+`med = sales.groupby('product_id')['unit_price'].transform('median')
+filled = sales['unit_price'].fillna(med)
+result = round(float(filled.mean()), 2)`
+},
+{
+  id:"08", title:"wMAPE by brand", topic:"custom grouped metric",
+  statement:`
+  <p>Straight from your day job. Using <code>forecasts</code> (monthly brand-level <code>actual</code> vs <code>forecast</code>), compute weighted MAPE per brand:</p>
+  <p style="font-family:var(--mono);font-size:13px">wMAPE = Σ|actual − forecast| / Σ actual</p>
+  <div class="spec">result: Series indexed by brand, values rounded to 4, sorted ascending (best forecast first)</div>`,
+  hint:"Compute an abs_err column first, then groupby('brand').apply — or cleaner: agg both sums and divide the two Series.",
+  solution:
+`f = forecasts.copy()
+f['abs_err'] = (f['actual'] - f['forecast']).abs()
+g = f.groupby('brand').agg(err=('abs_err','sum'), act=('actual','sum'))
+result = (g['err'] / g['act']).round(4).sort_values()`
+},
+{
+  id:"09", title:"Quarterly unstack", topic:"multi-index + unstack",
+  statement:`
+  <p>Build a long-to-wide quarterly view.</p>
+  <ul>
+    <li>Standard revenue prep, merge brand.</li>
+    <li>Derive quarter as a string like <code>2025Q1</code> via <code>date.dt.to_period('Q').astype(str)</code>.</li>
+    <li>Group by (brand, quarter), sum revenue — you now have a MultiIndex Series. Unstack the quarter level into columns.</li>
+  </ul>
+  <div class="spec">result: DataFrame indexed by brand, quarter-string columns, values rounded to 2</div>`,
+  hint:"groupby(['brand','quarter'])['revenue'].sum().unstack('quarter') — unstack moves the inner index level to columns.",
+  solution:
+`s = sales.dropna(subset=['unit_price']).merge(stores[['store_id','brand']], on='store_id')
+s['revenue'] = s['units'] * s['unit_price']
+s['quarter'] = s['date'].dt.to_period('Q').astype(str)
+result = (s.groupby(['brand','quarter'])['revenue'].sum()
+            .unstack('quarter')
+            .round(2))`
+},
+{
+  id:"10", title:"Basket-size mix", topic:"pd.cut + crosstab",
+  statement:`
+  <p>How does transaction size mix differ by brand?</p>
+  <ul>
+    <li>Standard revenue prep (transaction-level revenue), merge brand.</li>
+    <li>Bin transaction revenue with <code>pd.cut</code>: edges <code>[0, 50, 150, 400, inf]</code>, labels <code>['&lt;50','50-150','150-400','400+']</code>.</li>
+    <li>Crosstab band × brand, <strong>normalised within each brand column</strong> (columns sum to 1).</li>
+  </ul>
+  <div class="spec">result: crosstab DataFrame (band rows, brand columns), normalize='columns', rounded to 3</div>`,
+  hint:"pd.crosstab(band, s['brand'], normalize='columns'). np.inf is the last bin edge.",
+  solution:
+`s = sales.dropna(subset=['unit_price']).merge(stores[['store_id','brand']], on='store_id')
+s['revenue'] = s['units'] * s['unit_price']
+band = pd.cut(s['revenue'], bins=[0, 50, 150, 400, np.inf],
+              labels=['<50','50-150','150-400','400+'])
+result = pd.crosstab(band, s['brand'], normalize='columns').round(3)`
+},
+{
+  id:"11", title:"Month-on-month growth", topic:"pivot + pct_change",
+  statement:`
+  <p>Build the MoM growth matrix your Power BI report would sit on.</p>
+  <ul>
+    <li>Standard revenue prep, merge brand; month as string via <code>to_period('M').astype(str)</code>.</li>
+    <li>Pivot to month (rows, sorted ascending) × brand (columns), revenue sums.</li>
+    <li><code>pct_change()</code> down the rows, drop the first all-NaN row.</li>
+  </ul>
+  <div class="spec">result: DataFrame of MoM pct changes, month-string index, brand columns, .dropna(how='all'), rounded to 3</div>`,
+  hint:"pivot_table(index='month', columns='brand', values='revenue', aggfunc='sum').pct_change().",
+  solution:
+`s = sales.dropna(subset=['unit_price']).merge(stores[['store_id','brand']], on='store_id')
+s['revenue'] = s['units'] * s['unit_price']
+s['month'] = s['date'].dt.to_period('M').astype(str)
+pv = pd.pivot_table(s, index='month', columns='brand', values='revenue', aggfunc='sum').sort_index()
+result = pv.pct_change().dropna(how='all').round(3)`
+},
+{
+  id:"12", title:"Dedup, then peak day", topic:"duplicates + idxmax",
+  statement:`
+  <p>The extract double-loaded some rows — <code>sales</code> contains exact duplicate rows. Clean first, then answer:</p>
+  <ul>
+    <li>Drop fully-duplicated rows (keep the first).</li>
+    <li>Standard revenue prep, merge brand.</li>
+    <li>For each brand, find the <strong>date with the highest total daily revenue</strong>.</li>
+  </ul>
+  <div class="spec">result: Series indexed by brand, values = the winning date (Timestamp)</div>`,
+  hint:"After grouping to (brand, date) daily revenue: .groupby('brand').idxmax() on a Series gives (brand,date) tuples — or unstack and use idxmax(axis=1). Simplest: daily.groupby('brand').idxmax() then extract the date part, or use .loc on sorted values.",
+  solution:
+`s = sales.drop_duplicates().dropna(subset=['unit_price']).merge(stores[['store_id','brand']], on='store_id')
+s['revenue'] = s['units'] * s['unit_price']
+daily = s.groupby(['brand','date'])['revenue'].sum()
+idx = daily.groupby('brand').idxmax()
+result = idx.apply(lambda t: t[1])`
+}
+];
+
+const PROBLEMS = FOUNDATIONS.concat(MID_PROBLEMS);
+
+/* =========================================================
+   Lessons (Learn tab)
+========================================================= */
+const LESSONS = [
+{
+  id:"00", title:"DataFrame anatomy",
+  body:`
+  <h3>What a DataFrame actually is</h3>
+  <p>Three parts: an <strong>index</strong> (row labels, down the left), <strong>columns</strong> (labels across the top), and the <strong>values</strong>. Every column is a <strong>Series</strong> — a 1D labelled array with a single dtype. A DataFrame is a dict-like collection of Series sharing one index.</p>
+  <p>The index is not just row numbers — it's a first-class axis. Operations align on it (two Series divide by matching labels, not positions), <code>.loc</code> selects by it, and groupby/resample results land in it. Half of intermediate pandas is knowing where your data is: in a column, or in the index.</p>
+  <h3>First five commands on any new frame</h3>
+  <pre class="snippet">df.shape          # (rows, cols) - attribute, no ()
+df.head()         # first 5 rows; head(10) for more
+df.info()         # dtypes + non-null counts + memory: the single best overview
+df.dtypes         # just the column -> dtype mapping
+df.describe()     # numeric summary stats; include='all' for everything</pre>
+  <div class="gotcha"><b>info() is the bug-catcher</b>
+  Two problems show up instantly: columns that loaded as <code>object</code> when they should be numeric or datetime (means parsing failed or the source is dirty), and non-null counts lower than the row count (missing data you didn't know about). Run it before writing any logic.</div>
+  <h3>Series vs DataFrame — the bracket rule</h3>
+  <pre class="snippet">sales['units']            # Series (1D)
+sales[['units']]          # DataFrame with one column (2D)
+sales[['units','date']]   # DataFrame - list of names</pre>
+  <p>Methods differ between the two (a Series has <code>.value_counts()</code> directly; a frame needs a column first), so knowing which one you're holding matters. <code>type(x)</code> when unsure.</p>
+  <div class="gotcha"><b>Attributes vs methods</b>
+  <code>shape</code>, <code>dtypes</code>, <code>columns</code>, <code>index</code>, <code>values</code> are attributes — no parentheses. <code>head()</code>, <code>info()</code>, <code>describe()</code> are methods. <code>df.shape()</code> → "tuple is not callable" is the classic first-week error.</div>`,
+  demo:
+`# The reconnaissance routine - run this on any new table
+print(sales.shape)
+print()
+sales.info()
+print()
+print(sales.dtypes)
+
+# Series vs DataFrame
+print(type(sales['units']))
+print(type(sales[['units']]))
+
+sales.head()`
+},
+{
+  id:"01", title:"Selection & indexing",
+  body:`
+  <h3>The four ways in</h3>
+  <ul>
+    <li><code>df['col']</code> — one column, returns a Series. <code>df[['a','b']]</code> — list of columns, returns a DataFrame.</li>
+    <li><code>df.loc[rows, cols]</code> — <strong>label</strong>-based. Slices are inclusive on both ends: <code>df.loc[2:5]</code> includes label 5.</li>
+    <li><code>df.iloc[rows, cols]</code> — <strong>position</strong>-based, Python-style half-open slices: <code>df.iloc[2:5]</code> is rows 2,3,4.</li>
+    <li><code>df[mask]</code> — boolean Series filters rows. Combine conditions with <code>&amp;</code> <code>|</code> <code>~</code>, each condition wrapped in parentheses (operator precedence bites otherwise).</li>
+  </ul>
+  <pre class="snippet">df.loc[df['units'] > 3, ['store_id','units']]   # rows by mask, cols by label
+df.iloc[0:5, [1, 3]]                            # first 5 rows, cols at positions 1 and 3
+df[(df['units'] > 3) &amp; (df['promo_flag'])]      # parentheses are mandatory</pre>
+  <div class="gotcha"><b>Gotcha you already hit</b>
+  <code>df[[mask]]</code> — a boolean Series inside a list — is a <em>column</em> selection, so pandas hunts for a column named after a giant tuple of booleans → KeyError. Masks go in bare: <code>df[mask]</code>.</div>
+  <div class="gotcha"><b>Chained indexing</b>
+  <code>df[df.units > 3]['unit_price'] = 0</code> may silently do nothing (SettingWithCopyWarning). Writes go through a single <code>.loc</code>: <code>df.loc[df.units > 3, 'unit_price'] = 0</code>. And when you carve out a sub-frame you intend to mutate, take <code>.copy()</code> explicitly.</div>
+  <h3>query() as an alternative</h3>
+  <pre class="snippet">df.query("units > 3 and promo_flag")   # readable for complex filters</pre>`,
+  demo:
+`# Try each selection style on sales
+big = sales[(sales['units'] > 4) & (sales['promo_flag'])]
+print(big.shape)
+
+# label vs position
+print(sales.loc[0:3, ['store_id','units']])   # inclusive of label 3 -> 4 rows
+print(sales.iloc[0:3, [2, 4]])                # half-open -> 3 rows
+
+sales.query("units >= 6")[['sale_id','units','unit_price']].head()`
+},
+{
+  id:"02", title:"String & datetime accessors",
+  body:`
+  <h3>.str — vectorised string ops</h3>
+  <p>Any string Series exposes <code>.str</code>: <code>contains</code>, <code>startswith</code>, <code>extract</code>, <code>split</code>, <code>replace</code>, <code>upper</code>, <code>len</code>, <code>strip</code>. They broadcast over the whole column — no loops.</p>
+  <pre class="snippet">products['product_name'].str.contains('Item 0', na=False, regex=False)
+products['product_name'].str.extract(r' - ([SML])$')     # regex capture group
+products['product_name'].str.split(' - ').str[0]         # chain .str after split</pre>
+  <div class="gotcha"><b>Three defaults that cause wrong filters</b>
+  <code>contains</code> is regex by default (a stray <code>.</code> or <code>(</code> changes meaning), case-sensitive by default, and NaN rows yield NaN masks that break filtering. Production habit: <code>contains(pat, na=False, regex=False)</code> unless you truly want a regex.</div>
+  <h3>.dt — datetime parts</h3>
+  <p>Works on datetime64 columns (convert with <code>pd.to_datetime</code> first if needed): <code>.dt.year</code>, <code>.dt.month</code>, <code>.dt.day_name()</code>, <code>.dt.to_period('M')</code> for month buckets, <code>.dt.quarter</code>.</p>
+  <pre class="snippet">sales['date'].dt.to_period('M')         # 2025-03 style Period buckets
+sales['date'].dt.day_name()             # 'Monday'...
+pd.to_datetime(s, format='%d/%m/%Y')    # ALWAYS pass format for AU-style dates</pre>
+  <div class="gotcha"><b>AU dates</b>
+  <code>pd.to_datetime('05/03/2025')</code> parses as May 3 (month first) by default. For dd/mm data pass <code>format='%d/%m/%Y'</code> or <code>dayfirst=True</code> — silent swaps here are how quarters get misreported.</div>`,
+  demo:
+`# Extract the size suffix (S/M/L) from product names
+p = products.copy()
+p['size'] = p['product_name'].str.extract(r' - ([SML])$')
+print(p['size'].value_counts(dropna=False))
+
+# datetime parts
+s = sales.copy()
+s['dow'] = s['date'].dt.day_name()
+s['dow'].value_counts()`
+},
+{
+  id:"03", title:"Missing data",
+  body:`
+  <h3>Detect, drop, fill</h3>
+  <pre class="snippet">df['x'].isna()                    # boolean mask; .notna() is the inverse
+df.isna().sum()                   # NaN count per column - run this on any new data
+df.dropna(subset=['unit_price'])  # drop rows missing in SPECIFIC columns only
+df['x'].fillna(0)                 # constant fill
+df['x'].fillna(df['x'].median())  # statistic fill</pre>
+  <div class="gotcha"><b>NaN breaks equality</b>
+  <code>np.nan == np.nan</code> is False, so <code>df[df.x == np.nan]</code> matches nothing, ever. Use <code>.isna()</code>.</div>
+  <h3>Group-aware filling</h3>
+  <p>A global median is usually wrong when groups sit at different levels (a drill and a lip balm don't share a price). <code>transform</code> returns a fill Series aligned to the original index:</p>
+  <pre class="snippet">med = df.groupby('product_id')['unit_price'].transform('median')
+df['unit_price'] = df['unit_price'].fillna(med)</pre>
+  <div class="gotcha"><b>NaN propagates silently</b>
+  <code>sum()</code>/<code>mean()</code> skip NaN by default, but arithmetic doesn't: <code>units * unit_price</code> is NaN wherever price is NaN, and those rows quietly vanish from a later <code>.sum()</code>. Decide explicitly — drop or fill — before computing.</div>`,
+  demo:
+`print(sales.isna().sum())          # where are the holes?
+
+# global vs per-product median fill - compare the results
+global_fill = sales['unit_price'].fillna(sales['unit_price'].median())
+grouped_fill = sales['unit_price'].fillna(
+    sales.groupby('product_id')['unit_price'].transform('median'))
+
+print('global fill mean :', round(global_fill.mean(), 2))
+print('grouped fill mean:', round(grouped_fill.mean(), 2))`
+},
+{
+  id:"04", title:"GroupBy I — aggregation",
+  body:`
+  <h3>Split, apply, combine</h3>
+  <pre class="snippet">df.groupby('brand')['revenue'].sum()          # one col, one func -> Series
+df.groupby('brand').agg(                       # named aggregation - the clean form
+    revenue=('revenue','sum'),
+    avg_units=('units','mean'),
+    n_sales=('sale_id','count'))
+df.groupby(['brand','state'])['revenue'].sum() # multiple keys -> MultiIndex</pre>
+  <ul>
+    <li><code>size()</code> counts rows including NaN; <code>count()</code> counts non-NaN per column. They differ exactly where your data has holes.</li>
+    <li><code>as_index=False</code> keeps group keys as columns instead of the index — convenient before merging or plotting.</li>
+    <li><code>nunique()</code>, <code>first()</code>, custom lambdas all work inside <code>agg</code>.</li>
+  </ul>
+  <div class="gotcha"><b>observed= with categoricals</b>
+  Grouping on a categorical column emits every category, including ones absent from the data. Pass <code>observed=True</code> to only get groups that actually occur — and note pandas has been migrating this default across versions.</div>`,
+  demo:
+`s = sales.dropna(subset=['unit_price']).merge(stores[['store_id','brand']], on='store_id')
+s['revenue'] = s['units'] * s['unit_price']
+
+out = s.groupby('brand').agg(
+    revenue=('revenue', 'sum'),
+    avg_units=('units', 'mean'),
+    n_products=('product_id', 'nunique'),
+).round(2)
+out.sort_values('revenue', ascending=False)`
+},
+{
+  id:"05", title:"GroupBy II — transform, apply, filter",
+  body:`
+  <h3>Same split, different output shapes</h3>
+  <ul>
+    <li><code>agg</code> → one row per group (collapses).</li>
+    <li><code>transform</code> → same shape as the input, group value broadcast back to every row. The tool for "% of group", within-group z-scores, group-aware fills.</li>
+    <li><code>filter</code> → keeps or drops <em>entire groups</em>: <code>g.filter(lambda x: x['revenue'].sum() > 1e5)</code>.</li>
+    <li><code>apply</code> → arbitrary function per group. Most flexible, slowest, shape-unpredictable. Reach for it last.</li>
+  </ul>
+  <pre class="snippet"># share of brand, without merging an aggregate back on:
+df['brand_total'] = df.groupby('brand')['revenue'].transform('sum')
+df['share'] = df['revenue'] / df['brand_total']</pre>
+  <div class="gotcha"><b>transform vs apply</b>
+  If the per-group answer is a single statistic broadcast back (sum, mean, rank, cumsum), use <code>transform</code> — index-aligned and much faster. <code>apply</code> returning a scalar behaves like <code>agg</code>; returning a frame can silently reshape your data. If you land in <code>apply</code>, first ask whether <code>agg</code>/<code>transform</code>/vectorised ops cover it.</div>`,
+  demo:
+`s = sales.dropna(subset=['unit_price']).merge(stores[['store_id','brand']], on='store_id')
+s['revenue'] = s['units'] * s['unit_price']
+
+# each transaction's share of its brand's revenue
+s['share'] = s['revenue'] / s.groupby('brand')['revenue'].transform('sum')
+print(s[['brand','revenue','share']].head())
+
+# filter: only brands with > 700 transactions survive
+big_brands = s.groupby('brand').filter(lambda g: len(g) > 700)
+big_brands['brand'].value_counts()`
+},
+{
+  id:"06", title:"Merging & joins",
+  body:`
+  <h3>merge is SQL join</h3>
+  <pre class="snippet">df.merge(stores, on='store_id')                    # inner by default
+df.merge(stores, on='store_id', how='left')        # keep all left rows
+df.merge(x, left_on='sid', right_on='store_id')    # different key names
+pd.concat([a, b], ignore_index=True)               # stack frames vertically</pre>
+  <ul>
+    <li><code>how=</code>: inner / left / right / outer. Inner silently drops non-matching rows — a classic source of vanishing revenue.</li>
+    <li><code>suffixes=('_x','_y')</code> resolves clashing column names; set them meaningfully.</li>
+    <li><code>indicator=True</code> adds a <code>_merge</code> column (both / left_only / right_only) — the anti-join tool.</li>
+    <li><code>validate='m:1'</code> asserts join cardinality and raises if violated. Cheap insurance.</li>
+  </ul>
+  <div class="gotcha"><b>The silent row explosion</b>
+  If the right table unexpectedly has duplicate keys, a merge multiplies rows and every downstream sum inflates. Probably the most damaging pandas bug in commercial analytics. Guard with <code>validate='m:1'</code> (or <code>'1:1'</code>) whenever the right side should be unique — it fails loudly instead of lying quietly.</div>`,
+  demo:
+`# anti-join: products that never sold
+m = products.merge(sales[['product_id']].drop_duplicates(),
+                   on='product_id', how='left', indicator=True)
+print(m['_merge'].value_counts())
+print(m.loc[m['_merge'] == 'left_only', 'product_id'].tolist())
+
+# validate catches bad cardinality - stores must be unique per store_id
+ok = sales.merge(stores, on='store_id', validate='m:1')
+print(ok.shape)`
+},
+{
+  id:"07", title:"Reshaping — pivot, melt, stack",
+  body:`
+  <h3>Long ↔ wide</h3>
+  <ul>
+    <li><code>pivot_table</code> — long → wide with <em>aggregation</em>: duplicate index/column pairs are collapsed by <code>aggfunc</code>. Supports <code>fill_value</code>, <code>margins</code>.</li>
+    <li><code>pivot</code> — pure reshape, no aggregation; <strong>raises</strong> if any index/column pair repeats. Use it when duplicates would indicate a data bug.</li>
+    <li><code>melt</code> — wide → long: column names become values in a <code>variable</code> column. The undo button for pivot.</li>
+    <li><code>stack()</code>/<code>unstack()</code> — move index levels ↔ column levels on MultiIndexed data. <code>groupby(two keys).sum().unstack()</code> is the everyday form.</li>
+  </ul>
+  <pre class="snippet">pd.pivot_table(s, index='brand', columns='state', values='revenue',
+               aggfunc='sum', fill_value=0)
+wide.melt(id_vars='brand', var_name='state', value_name='revenue')
+s.groupby(['brand','quarter'])['revenue'].sum().unstack('quarter')</pre>
+  <div class="gotcha"><b>Which to reach for</b>
+  Power BI thinks in matrices; pandas thinks long. Do your maths in long format (groupby-friendly), pivot only at the end for presentation. Round-tripping through wide format mid-pipeline creates NaN-handling and column-name headaches.</div>`,
+  demo:
+`s = sales.dropna(subset=['unit_price']).merge(stores[['store_id','brand','state']], on='store_id')
+s['revenue'] = s['units'] * s['unit_price']
+
+wide = pd.pivot_table(s, index='brand', columns='state',
+                      values='revenue', aggfunc='sum', fill_value=0).round(0)
+print(wide)
+
+# and back to long
+wide.reset_index().melt(id_vars='brand', var_name='state', value_name='revenue').head()`
+},
+{
+  id:"08", title:"Time series — resample, rolling, shift",
+  body:`
+  <h3>The forecasting toolkit</h3>
+  <ul>
+    <li><code>resample('W')</code> — groupby for time: needs a DatetimeIndex (or <code>on='date'</code>). Emits <em>every</em> period in range including empty ones — unlike groupby on a month column, which skips gaps. That difference matters for Prophet-style inputs.</li>
+    <li><code>rolling(4).mean()</code> — moving windows; first n−1 rows are NaN by design. <code>min_periods=1</code> for partial windows.</li>
+    <li><code>shift(1)</code> — lag features. <code>pct_change()</code> — your MoM/WoW growth.</li>
+    <li><code>expanding().mean()</code> — cumulative-window stats.</li>
+  </ul>
+  <pre class="snippet">weekly = s.set_index('date').resample('W')['revenue'].sum()
+weekly.rolling(4).mean()
+monthly.pct_change()                                # growth rates
+df['lag_1'] = df.groupby('brand')['rev'].shift(1)   # lags WITHIN groups</pre>
+  <div class="gotcha"><b>Shift leaks across groups</b>
+  On stacked brand data, a bare <code>shift(1)</code> pulls the last row of the <em>previous brand</em> into the first row of the next. Lag features on panel data must be <code>groupby(...)['col'].shift(1)</code>. This exact bug produces subtly wrong elasticity features that still fit fine.</div>`,
+  demo:
+`s = sales.dropna(subset=['unit_price']).merge(stores[['store_id','brand']], on='store_id')
+s['revenue'] = s['units'] * s['unit_price']
+
+weekly = s.set_index('date').resample('W')['revenue'].sum().to_frame('rev')
+weekly['roll4'] = weekly['rev'].rolling(4).mean()
+weekly['wow'] = weekly['rev'].pct_change()
+weekly.head(8).round(2)`
+},
+{
+  id:"09", title:"Sorting, ranking, binning",
+  body:`
+  <h3>Ordering things</h3>
+  <pre class="snippet">df.sort_values(['brand','revenue'], ascending=[True, False])
+df.nlargest(5, 'revenue')                        # faster than sort + head
+df.groupby('brand')['rev'].rank(ascending=False, method='dense')
+df.sort_values('rev').groupby('brand').tail(3)   # top/bottom n per group</pre>
+  <ul>
+    <li><code>rank(method=)</code>: 'average' (default), 'min', 'dense', 'first' — they differ on ties; 'first' matches SQL ROW_NUMBER.</li>
+    <li><code>idxmax()</code>/<code>idxmin()</code> return the <em>index label</em> of the extreme — "which date had peak revenue", not just the peak value.</li>
+  </ul>
+  <h3>Binning continuous values</h3>
+  <ul>
+    <li><code>pd.cut</code> — fixed edges you choose (price bands). Values outside the edges become NaN.</li>
+    <li><code>pd.qcut</code> — quantile bins: equal <em>counts</em> per bin, uneven widths. Deciles, quartiles.</li>
+  </ul>
+  <pre class="snippet">pd.cut(s['revenue'], bins=[0,50,150,400,np.inf], labels=['&lt;50','50-150','150-400','400+'])
+pd.qcut(s['revenue'], 4, labels=['Q1','Q2','Q3','Q4'])</pre>
+  <div class="gotcha"><b>cut output is categorical</b>
+  The result is an ordered Categorical — great for sorting bands correctly, but grouping on it emits empty categories unless <code>observed=True</code>, and it won't accept out-of-category values on assignment.</div>`,
+  demo:
+`s = sales.dropna(subset=['unit_price']).merge(stores[['store_id','brand']], on='store_id')
+s['revenue'] = s['units'] * s['unit_price']
+
+# top 2 products per brand via rank
+agg = s.groupby(['brand','product_id'], as_index=False)['revenue'].sum()
+agg['rk'] = agg.groupby('brand')['revenue'].rank(ascending=False, method='first')
+print(agg[agg['rk'] <= 2].sort_values(['brand','rk']).head(12))
+
+# quartile bins
+pd.qcut(s['revenue'], 4).value_counts().sort_index()`
+},
+{
+  id:"10", title:"Chaining, assign & performance",
+  body:`
+  <h3>Readable pipelines</h3>
+  <p><code>assign</code> creates columns and returns the frame, enabling chains that read top-to-bottom like a recipe — no df2, df3, df_final_v2:</p>
+  <pre class="snippet">out = (sales
+    .dropna(subset=['unit_price'])
+    .merge(stores[['store_id','brand']], on='store_id')
+    .assign(revenue=lambda d: d['units'] * d['unit_price'])
+    .groupby('brand', as_index=False)['revenue'].sum()
+    .sort_values('revenue', ascending=False))</pre>
+  <p>The <code>lambda d:</code> form lets each step reference columns created in the previous step. <code>.pipe(func)</code> slots custom functions into a chain.</p>
+  <h3>Performance rules of thumb</h3>
+  <ul>
+    <li>Vectorised column arithmetic beats <code>df.apply(..., axis=1)</code> by 10–100x. Row-wise apply is a Python loop in disguise.</li>
+    <li><code>np.where(cond, a, b)</code> and <code>np.select(conds, choices)</code> replace most conditional-apply patterns.</li>
+    <li><code>map</code> with a dict for small lookups; <code>merge</code> for anything bigger.</li>
+    <li>Pull aggregated data from Redshift when you can — shipping raw rows to aggregate in pandas moves the work to the weakest link.</li>
+  </ul>
+  <div class="gotcha"><b>inplace=True</b>
+  Avoid it. It rarely saves memory, kills chaining, and pandas itself has been de-emphasising it. Reassign instead: <code>df = df.sort_values(...)</code>.</div>`,
+  demo:
+`import time
+
+s = sales.dropna(subset=['unit_price']).copy()
+
+t0 = time.time()
+slow = s.apply(lambda r: r['units'] * r['unit_price'], axis=1)
+t1 = time.time()
+fast = s['units'] * s['unit_price']
+t2 = time.time()
+
+print('row-wise apply:', round((t1-t0)*1000, 1), 'ms')
+print('vectorised    :', round((t2-t1)*1000, 1), 'ms')
+print('same answer   :', slow.round(6).equals(fast.round(6)))`
+}
+];
+
+/* =========================================================
+   PLOTS track content
+========================================================= */
+const PLOT_LESSONS = [
+{
+  id:"01", title:"The two APIs & the golden rule",
+  body:`
+  <h3>Two ways to plot, one you should prefer</h3>
+  <p>pandas has a built-in <code>.plot()</code> that's fast for exploration. matplotlib's explicit <code>fig, ax = plt.subplots()</code> is what you want for anything you'll show someone — it gives you the axis handle to set titles, labels, colours.</p>
+  <pre class="snippet">df['col'].plot(kind='bar')                    # quick, pandas does the matplotlib for you
+fig, ax = plt.subplots(figsize=(8,4))         # explicit - you control everything
+ax.bar(x, y)</pre>
+  <div class="gotcha"><b>The golden rule for a test</b>
+  Always create <code>fig, ax = plt.subplots()</code> and call methods on <code>ax</code> (<code>ax.bar</code>, <code>ax.set_title</code>). Mixing the pandas <code>.plot()</code> shortcut with <code>ax</code> customisation is where people get confused under time pressure. Pick the explicit API and stick to it.</div>
+  <h3>The four you'll actually use</h3>
+  <ul>
+    <li><code>ax.bar</code> / <code>ax.barh</code> — comparing categories (revenue by brand). barh when labels are long.</li>
+    <li><code>ax.plot</code> — trends over time.</li>
+    <li><code>ax.scatter</code> — relationship between two numerics (the store residual plot).</li>
+    <li><code>ax.hist</code> — distribution of one numeric.</li>
+  </ul>`,
+  demo:
+`s = sales.dropna(subset=['unit_price']).merge(stores[['store_id','brand']], on='store_id')
+s['revenue'] = s['units'] * s['unit_price']
+rev = s.groupby('brand')['revenue'].sum().sort_values()
+
+fig, ax = plt.subplots(figsize=(7, 4))
+ax.barh(rev.index, rev.values, color='#0B5B41')
+ax.set_title('Revenue by brand')
+ax.set_xlabel('Revenue ($)')`
+},
+{
+  id:"02", title:"Labelling — the marks that score",
+  body:`
+  <h3>An unlabelled chart is worth zero in an interview</h3>
+  <p>The plot is not the deliverable; the <em>message</em> is. Every chart needs a title that states the finding, and axis labels with units.</p>
+  <pre class="snippet">ax.set_title('Revenue concentrated in two brands')   # the FINDING, not 'Revenue chart'
+ax.set_xlabel('Revenue ($m)')
+ax.set_ylabel('Brand')
+ax.legend(frameon=False)                              # only if multiple series</pre>
+  <div class="gotcha"><b>Title = conclusion</b>
+  "Bar chart of revenue by brand" describes the chart. "Bunnings and Kmart drive 60% of revenue" describes the finding. The second earns marks; write titles as the sentence you'd say out loud.</div>
+  <h3>Value labels on bars</h3>
+  <pre class="snippet">for i, v in enumerate(vals):
+    ax.text(v, i, f'\${v:,.0f}', va='center')   # put the number on the bar</pre>`,
+  demo:
+`s = sales.dropna(subset=['unit_price']).merge(stores[['store_id','brand']], on='store_id')
+s['revenue'] = s['units'] * s['unit_price']
+rev = s.groupby('brand')['revenue'].sum().sort_values()
+
+fig, ax = plt.subplots(figsize=(7.5, 4))
+ax.barh(rev.index, rev.values / 1000, color='#0B5B41')
+ax.set_title('Bunnings and Kmart lead brand revenue')
+ax.set_xlabel('Revenue (\$000s)')
+for i, v in enumerate(rev.values / 1000):
+    ax.text(v + 5, i, f'\${v:,.0f}k', va='center', fontsize=9)`
+},
+{
+  id:"03", title:"Time series & the promo-shading trick",
+  body:`
+  <h3>Plotting a trend</h3>
+  <pre class="snippet">weekly = s.set_index('date').resample('W')['revenue'].sum()
+fig, ax = plt.subplots(figsize=(9,4))
+ax.plot(weekly.index, weekly.values, color='#152019')</pre>
+  <p>Two lines for actual-vs-baseline is the workhorse of a forecasting or promo case. Shade regions with <code>axvspan</code> to mark events, draw reference lines with <code>axhline</code>/<code>axvline</code>.</p>
+  <pre class="snippet">ax.plot(d['date'], d['actual'], color='#152019', label='Actual')
+ax.plot(d['date'], d['baseline'], ls='--', color='#0B5B41', label='Baseline')
+ax.axhline(0, color='grey', lw=0.8)          # reference line
+ax.legend(frameon=False)</pre>
+  <div class="gotcha"><b>Dates on the x-axis</b>
+  A DatetimeIndex plots cleanly; strings plot as evenly-spaced categories (wrong spacing). Keep dates as datetime, not str, when plotting time.</div>`,
+  demo:
+`s = sales.dropna(subset=['unit_price']).merge(stores[['store_id','brand']], on='store_id')
+s['revenue'] = s['units'] * s['unit_price']
+w = s.set_index('date').resample('W')['revenue'].sum()
+
+fig, ax = plt.subplots(figsize=(9, 4))
+ax.plot(w.index, w.values, color='#152019', lw=1.4)
+ax.plot(w.index, w.rolling(4).mean().values, color='#E8630A', lw=2, label='4-wk avg')
+ax.set_title('Weekly revenue with 4-week moving average')
+ax.set_ylabel('Revenue ($)')
+ax.legend(frameon=False)`
+},
+{
+  id:"04", title:"Small multiples & saving",
+  body:`
+  <h3>Several panels at once</h3>
+  <pre class="snippet">fig, axes = plt.subplots(2, 2, figsize=(10,7))   # 2x2 grid
+axes = axes.flatten()
+for ax, (name, g) in zip(axes, df.groupby('brand')):
+    ax.plot(g['date'], g['revenue'])
+    ax.set_title(name)
+fig.tight_layout()                               # stops labels overlapping</pre>
+  <div class="gotcha"><b>tight_layout()</b>
+  Without it, titles and axis labels overlap between panels. Call it once at the end. It's the single most forgotten line.</div>
+  <h3>Saving for a deck</h3>
+  <pre class="snippet">fig.savefig('chart.png', dpi=150, bbox_inches='tight')   # bbox stops clipping</pre>
+  <p>In a real test you'd save and drop into slides; here the figure just renders below.</p>`,
+  demo:
+`s = sales.dropna(subset=['unit_price']).merge(stores[['store_id','brand']], on='store_id')
+s['revenue'] = s['units'] * s['unit_price']
+s['month'] = s['date'].dt.to_period('M').astype(str)
+
+fig, axes = plt.subplots(2, 3, figsize=(11, 6))
+for ax, (name, g) in zip(axes.flatten(), s.groupby('brand')):
+    m = g.groupby('month')['revenue'].sum()
+    ax.plot(range(len(m)), m.values, color='#0B5B41')
+    ax.set_title(name, fontsize=10)
+    ax.tick_params(labelsize=7)
+fig.tight_layout()`
+}
+];
+
+const PLOT_PROBLEMS = [
+{
+  id:"01", title:"Revenue bar chart", topic:"ax.barh + labels",
+  statement:`<p>The bread-and-butter chart. Build a horizontal bar chart of total revenue by brand.</p>
+  <ul><li>Standard revenue prep, merge brand, group and sum.</li>
+  <li>Sort ascending (so the biggest bar is on top in barh), plot with <code>ax.barh</code>.</li>
+  <li>Title stating a finding, x-axis label with units.</li></ul>
+  <div class="spec">Render a horizontal bar chart. No automated check here — compare against the reference visually.</div>`,
+  solution:
+`s = sales.dropna(subset=['unit_price']).merge(stores[['store_id','brand']], on='store_id')
+s['revenue'] = s['units'] * s['unit_price']
+rev = s.groupby('brand')['revenue'].sum().sort_values()
+
+fig, ax = plt.subplots(figsize=(8, 4.5))
+ax.barh(rev.index, rev.values / 1000, color='#0B5B41')
+ax.set_title('Revenue is concentrated in the top brands')
+ax.set_xlabel('Revenue (\$000s)')
+for i, v in enumerate(rev.values / 1000):
+    ax.text(v + 5, i, f'\${v:,.0f}k', va='center', fontsize=9)`
+},
+{
+  id:"02", title:"Weekly trend + moving average", topic:"ax.plot + rolling",
+  statement:`<p>A forecasting-style two-line chart for Bunnings.</p>
+  <ul><li>Revenue prep, filter Bunnings, resample weekly.</li>
+  <li>Plot weekly revenue and its 4-week rolling mean as two lines.</li>
+  <li>Legend, title, y-label.</li></ul>
+  <div class="spec">Render a line chart with two series. Visual comparison.</div>`,
+  solution:
+`s = sales.dropna(subset=['unit_price']).merge(stores[['store_id','brand']], on='store_id')
+s = s[s['brand'] == 'Bunnings'].copy()
+s['revenue'] = s['units'] * s['unit_price']
+w = s.set_index('date').resample('W')['revenue'].sum()
+
+fig, ax = plt.subplots(figsize=(9, 4.2))
+ax.plot(w.index, w.values, color='#152019', lw=1.3, label='Weekly')
+ax.plot(w.index, w.rolling(4).mean().values, color='#E8630A', lw=2, label='4-week avg')
+ax.set_title('Bunnings weekly revenue trend')
+ax.set_ylabel('Revenue (\$)')
+ax.legend(frameon=False)`
+},
+{
+  id:"03", title:"Scatter with a fit line", topic:"ax.scatter + reference",
+  statement:`<p>The store-benchmarking chart pattern: revenue vs a driver.</p>
+  <ul><li>Per store: total revenue and transaction count (proxy for traffic).</li>
+  <li>Scatter revenue (y) against transaction count (x).</li>
+  <li>Add a title and both axis labels.</li></ul>
+  <div class="spec">Render a scatter plot. Visual comparison.</div>`,
+  solution:
+`s = sales.dropna(subset=['unit_price']).copy()
+s['revenue'] = s['units'] * s['unit_price']
+g = s.groupby('store_id').agg(revenue=('revenue','sum'), txns=('sale_id','count'))
+
+fig, ax = plt.subplots(figsize=(8, 5))
+ax.scatter(g['txns'], g['revenue'] / 1000, s=40, color='#0B5B41', alpha=0.7)
+ax.set_title('Store revenue rises with transaction volume')
+ax.set_xlabel('Transactions')
+ax.set_ylabel('Revenue (\$000s)')`
+},
+{
+  id:"04", title:"Grouped bars: promo vs non-promo", topic:"side-by-side bars",
+  statement:`<p>Compare two series across categories — the most common "explain the difference" chart.</p>
+  <ul><li>Revenue prep, merge brand. Split avg transaction revenue by promo_flag.</li>
+  <li>Plot promo and non-promo as side-by-side bars per brand (offset x positions by a width).</li>
+  <li>Legend distinguishing the two.</li></ul>
+  <div class="spec">Render grouped bars. Visual comparison. This is the fiddly one — offsetting positions with np.arange.</div>`,
+  solution:
+`s = sales.dropna(subset=['unit_price']).merge(stores[['store_id','brand']], on='store_id')
+s['revenue'] = s['units'] * s['unit_price']
+piv = s.groupby(['brand','promo_flag'])['revenue'].mean().unstack()
+
+x = np.arange(len(piv))
+w = 0.38
+fig, ax = plt.subplots(figsize=(9, 4.5))
+ax.bar(x - w/2, piv[False], w, label='Non-promo', color='#8A9990')
+ax.bar(x + w/2, piv[True], w, label='Promo', color='#E8630A')
+ax.set_xticks(x); ax.set_xticklabels(piv.index)
+ax.set_title('Average transaction value: promo vs non-promo by brand')
+ax.set_ylabel('Avg revenue per txn (\$)')
+ax.legend(frameon=False)`
+}
+];
+
+const PLOT_DOCS = `
+<h3>Setup</h3>
+<pre class="snippet">import matplotlib.pyplot as plt
+fig, ax = plt.subplots(figsize=(w, h))   # always start here</pre>
+<h3>Chart types</h3>
+<pre class="snippet">ax.bar(x, y)        ax.barh(y, x)         # vertical / horizontal bars
+ax.plot(x, y)                             # line
+ax.scatter(x, y)                          # points
+ax.hist(values, bins=20)                  # distribution
+ax.boxplot(list_of_arrays)                # spread / outliers</pre>
+<h3>Labelling (every chart)</h3>
+<pre class="snippet">ax.set_title('finding as a sentence')
+ax.set_xlabel('label (units)')
+ax.set_ylabel('label (units)')
+ax.legend(frameon=False)                  # multi-series only
+ax.text(x, y, 'annotation')               # value labels</pre>
+<h3>References & regions</h3>
+<pre class="snippet">ax.axhline(0, color='grey', lw=0.8)       # horizontal line
+ax.axvline(date, ls='--')                 # vertical line
+ax.axvspan(d1, d2, alpha=0.2)             # shaded region (promo weeks)
+ax.set_ylim(0, 100)  ax.set_xlim(...)     # fix axis range</pre>
+<h3>Layout & multi-panel</h3>
+<pre class="snippet">fig, axes = plt.subplots(2, 2, figsize=(10,7))
+for ax in axes.flatten(): ...
+fig.tight_layout()                        # ALWAYS, stops overlap
+fig.savefig('c.png', dpi=150, bbox_inches='tight')</pre>
+<h3>pandas shortcut (exploration)</h3>
+<pre class="snippet">df['col'].plot(kind='bar', ax=ax)         # pass ax= to control it
+df.plot(x='a', y='b', kind='scatter', ax=ax)
+df['col'].value_counts().plot(kind='barh', ax=ax)</pre>
+<div class="gotcha"><b>Reminders that cost marks</b>
+tight_layout() prevents overlap; titles should state findings; keep dates as datetime not str; label units on every axis.</div>
+`;
+
+/* =========================================================
+   SQL track content (runs on SQLite; Snowflake diffs flagged)
+========================================================= */
+const SQL_LESSONS = [
+{
+  id:"01", title:"SELECT, WHERE, ORDER BY, LIMIT",
+  body:`
+  <h3>The skeleton</h3>
+  <pre class="snippet">SELECT product_id, units, unit_price
+FROM sales
+WHERE unit_price IS NOT NULL AND units >= 5
+ORDER BY unit_price DESC
+LIMIT 10;</pre>
+  <ul><li>Clause order is fixed: SELECT / FROM / WHERE / GROUP BY / HAVING / ORDER BY / LIMIT.</li>
+  <li><code>NULL</code> needs <code>IS NULL</code> / <code>IS NOT NULL</code> — never <code>= NULL</code>. Same trap as NaN in pandas.</li>
+  <li><code>ORDER BY col DESC</code>, multiple keys comma-separated.</li></ul>
+  <div class="snow"><b>Snowflake difference</b>Snowflake also supports <code>LIMIT n</code>, but the idiomatic top-n-per-group uses <code>QUALIFY ROW_NUMBER() OVER (...) <= n</code> — SQLite has no <code>QUALIFY</code> (you wrap in a subquery instead). Covered in Docs.</div>`,
+  demo:`SELECT product_id, units, unit_price
+FROM sales
+WHERE unit_price IS NOT NULL
+ORDER BY unit_price DESC
+LIMIT 8;`
+},
+{
+  id:"02", title:"GROUP BY & aggregates",
+  body:`
+  <h3>Aggregation</h3>
+  <pre class="snippet">SELECT store_id,
+       SUM(units * unit_price) AS revenue,
+       COUNT(*) AS txns,
+       AVG(units) AS avg_units
+FROM sales
+WHERE unit_price IS NOT NULL
+GROUP BY store_id
+HAVING SUM(units * unit_price) > 5000
+ORDER BY revenue DESC;</pre>
+  <ul><li>Every non-aggregated SELECT column must appear in GROUP BY.</li>
+  <li><code>WHERE</code> filters rows <em>before</em> grouping; <code>HAVING</code> filters groups <em>after</em>. Using WHERE on an aggregate is an error — that's HAVING's job.</li>
+  <li>Alias with <code>AS</code>; you can ORDER BY the alias.</li></ul>`,
+  demo:`SELECT store_id,
+       SUM(units * unit_price) AS revenue,
+       COUNT(*) AS txns
+FROM sales
+WHERE unit_price IS NOT NULL
+GROUP BY store_id
+ORDER BY revenue DESC
+LIMIT 10;`
+},
+{
+  id:"03", title:"JOINs",
+  body:`
+  <h3>Bringing brand into sales</h3>
+  <pre class="snippet">SELECT st.brand, SUM(s.units * s.unit_price) AS revenue
+FROM sales s
+JOIN stores st ON s.store_id = st.store_id
+WHERE s.unit_price IS NOT NULL
+GROUP BY st.brand
+ORDER BY revenue DESC;</pre>
+  <ul><li>Alias tables (<code>sales s</code>) and qualify columns (<code>s.units</code>) — mandatory once names clash.</li>
+  <li><code>JOIN</code> = INNER (drops non-matches). <code>LEFT JOIN</code> keeps all left rows — use it for the never-sold anti-join with <code>WHERE right.key IS NULL</code>.</li></ul>
+  <div class="gotcha"><b>Same trap as pandas merge</b>If the right table has duplicate keys the join multiplies rows and sums inflate. Know your join cardinality.</div>`,
+  demo:`SELECT st.brand, SUM(s.units * s.unit_price) AS revenue
+FROM sales s
+JOIN stores st ON s.store_id = st.store_id
+WHERE s.unit_price IS NOT NULL
+GROUP BY st.brand
+ORDER BY revenue DESC;`
+},
+{
+  id:"04", title:"CTEs & subqueries",
+  body:`
+  <h3>WITH — name your steps</h3>
+  <pre class="snippet">WITH brand_rev AS (
+    SELECT st.brand, SUM(s.units * s.unit_price) AS revenue
+    FROM sales s JOIN stores st ON s.store_id = st.store_id
+    WHERE s.unit_price IS NOT NULL
+    GROUP BY st.brand
+)
+SELECT * FROM brand_rev WHERE revenue > 100000 ORDER BY revenue DESC;</pre>
+  <p>CTEs turn nested subqueries into readable top-to-bottom steps — the SQL equivalent of pandas method chaining. Chain several with commas. Prefer them over deeply nested subqueries for anything you'll be asked to explain.</p>`,
+  demo:`WITH brand_rev AS (
+  SELECT st.brand, SUM(s.units * s.unit_price) AS revenue
+  FROM sales s JOIN stores st ON s.store_id = st.store_id
+  WHERE s.unit_price IS NOT NULL
+  GROUP BY st.brand
+)
+SELECT * FROM brand_rev ORDER BY revenue DESC;`
+},
+{
+  id:"05", title:"Window functions",
+  body:`
+  <h3>Aggregate without collapsing rows</h3>
+  <pre class="snippet">SELECT store_id, brand, revenue,
+       revenue / SUM(revenue) OVER (PARTITION BY brand) AS share,
+       RANK() OVER (PARTITION BY brand ORDER BY revenue DESC) AS rk
+FROM store_revenue;</pre>
+  <ul><li><code>OVER (PARTITION BY ...)</code> = groupby that keeps every row — the SQL <code>transform</code>.</li>
+  <li><code>ROW_NUMBER</code> (unique), <code>RANK</code> (ties share, gaps), <code>DENSE_RANK</code> (ties share, no gaps).</li>
+  <li>Top-n-per-group = rank in a subquery, filter <code>rk <= n</code> outside.</li></ul>
+  <div class="snow"><b>Snowflake difference</b>Snowflake's <code>QUALIFY</code> filters window results in one statement: <code>QUALIFY RANK() OVER (...) <= 3</code>. SQLite forces the subquery wrap shown above. This is the single most common Snowflake-specific idiom — know both.</div>`,
+  demo:`WITH sr AS (
+  SELECT st.brand, s.store_id, SUM(s.units*s.unit_price) AS revenue
+  FROM sales s JOIN stores st ON s.store_id=st.store_id
+  WHERE s.unit_price IS NOT NULL
+  GROUP BY st.brand, s.store_id
+)
+SELECT brand, store_id, revenue,
+       RANK() OVER (PARTITION BY brand ORDER BY revenue DESC) AS rk
+FROM sr
+ORDER BY brand, rk
+LIMIT 15;`
+}
+];
+
+const SQL_PROBLEMS = [
+{
+  id:"01", title:"Top 10 line items", topic:"WHERE + ORDER BY + LIMIT",
+  statement:`<p>Return the 10 highest-value line items (units × unit_price), excluding rows with missing price.</p>
+  <div class="spec">Columns: sale_id, unit_price, and the computed line_value. Ordered by line_value descending, 10 rows.</div>`,
+  check:{cols:["sale_id","unit_price","line_value"], rows:10},
+  solution:`SELECT sale_id, unit_price, units * unit_price AS line_value
+FROM sales
+WHERE unit_price IS NOT NULL
+ORDER BY line_value DESC
+LIMIT 10;`
+},
+{
+  id:"02", title:"Revenue by brand", topic:"JOIN + GROUP BY",
+  statement:`<p>Total revenue per brand, highest first. Brand lives in stores.</p>
+  <div class="spec">Columns: brand, revenue. One row per brand, ordered by revenue descending.</div>`,
+  snow:"In Snowflake this is identical. <code>SUM</code>, <code>JOIN</code>, <code>GROUP BY</code> are standard.",
+  check:{cols:["brand","revenue"]},
+  solution:`SELECT st.brand, SUM(s.units * s.unit_price) AS revenue
+FROM sales s
+JOIN stores st ON s.store_id = st.store_id
+WHERE s.unit_price IS NOT NULL
+GROUP BY st.brand
+ORDER BY revenue DESC;`
+},
+{
+  id:"03", title:"Never-sold products", topic:"LEFT JOIN anti-join",
+  statement:`<p>List product_ids that appear in products but never in sales.</p>
+  <div class="spec">Column: product_id. Ordered ascending. (5 products.)</div>`,
+  snow:"Identical in Snowflake. <code>LEFT JOIN ... WHERE x IS NULL</code> is the portable anti-join; Snowflake also allows <code>EXCEPT</code> or <code>NOT EXISTS</code>.",
+  check:{cols:["product_id"]},
+  solution:`SELECT p.product_id
+FROM products p
+LEFT JOIN (SELECT DISTINCT product_id FROM sales) s ON p.product_id = s.product_id
+WHERE s.product_id IS NULL
+ORDER BY p.product_id;`
+},
+{
+  id:"04", title:"Brand revenue with a CTE", topic:"WITH + HAVING",
+  statement:`<p>Using a CTE, return brands whose total revenue exceeds 100,000.</p>
+  <div class="spec">Columns: brand, revenue. Ordered by revenue descending.</div>`,
+  check:{cols:["brand","revenue"]},
+  solution:`WITH brand_rev AS (
+  SELECT st.brand, SUM(s.units * s.unit_price) AS revenue
+  FROM sales s JOIN stores st ON s.store_id = st.store_id
+  WHERE s.unit_price IS NOT NULL
+  GROUP BY st.brand
+)
+SELECT brand, revenue FROM brand_rev
+WHERE revenue > 100000
+ORDER BY revenue DESC;`
+},
+{
+  id:"05", title:"Top 3 products per brand", topic:"window function + subquery",
+  statement:`<p>For each brand, its 3 highest-revenue products. This needs a window function ranked in a subquery, then filtered.</p>
+  <div class="spec">Columns: brand, product_id, revenue. Ordered by brand, then revenue descending within brand.</div>`,
+  snow:"Snowflake collapses the subquery wrap: add <code>QUALIFY ROW_NUMBER() OVER (PARTITION BY brand ORDER BY revenue DESC) <= 3</code> directly to the aggregating query. SQLite has no QUALIFY, hence the outer SELECT here.",
+  check:{cols:["brand","product_id","revenue"]},
+  solution:`WITH prod_rev AS (
+  SELECT st.brand, s.product_id, SUM(s.units * s.unit_price) AS revenue
+  FROM sales s JOIN stores st ON s.store_id = st.store_id
+  WHERE s.unit_price IS NOT NULL
+  GROUP BY st.brand, s.product_id
+),
+ranked AS (
+  SELECT brand, product_id, revenue,
+         ROW_NUMBER() OVER (PARTITION BY brand ORDER BY revenue DESC) AS rk
+  FROM prod_rev
+)
+SELECT brand, product_id, revenue FROM ranked
+WHERE rk <= 3
+ORDER BY brand, revenue DESC;`
+},
+{
+  id:"06", title:"Monthly revenue trend", topic:"date functions + GROUP BY",
+  statement:`<p>Total revenue per calendar month across all brands.</p>
+  <div class="spec">Columns: month (YYYY-MM text), revenue. Ordered by month ascending.</div>`,
+  snow:"Date handling is the biggest dialect gap. SQLite uses <code>strftime('%Y-%m', date)</code>. Snowflake uses <code>TO_VARCHAR(date,'YYYY-MM')</code> or <code>DATE_TRUNC('month', date)</code>. The logic is identical; the function names differ.",
+  check:{cols:["month","revenue"]},
+  solution:`SELECT strftime('%Y-%m', date) AS month,
+       SUM(units * unit_price) AS revenue
+FROM sales
+WHERE unit_price IS NOT NULL
+GROUP BY month
+ORDER BY month;`
+},
+{
+  id:"07", title:"Store share of brand", topic:"window PARTITION BY",
+  statement:`<p>For each store, its revenue as a share of its brand's total revenue.</p>
+  <div class="spec">Columns: store_id, brand, revenue, share (0–1). Ordered by brand, then share descending.</div>`,
+  snow:"Identical in Snowflake — window functions are ANSI standard and portable.",
+  check:{cols:["store_id","brand","revenue","share"]},
+  solution:`WITH sr AS (
+  SELECT s.store_id, st.brand, SUM(s.units * s.unit_price) AS revenue
+  FROM sales s JOIN stores st ON s.store_id = st.store_id
+  WHERE s.unit_price IS NOT NULL
+  GROUP BY s.store_id, st.brand
+)
+SELECT store_id, brand, revenue,
+       revenue / SUM(revenue) OVER (PARTITION BY brand) AS share
+FROM sr
+ORDER BY brand, share DESC;`
+},
+{
+  id:"08", title:"Promo uplift by brand", topic:"conditional aggregation",
+  statement:`<p>Per brand, the average transaction revenue on promo vs non-promo, using conditional aggregation (CASE inside AVG).</p>
+  <div class="spec">Columns: brand, promo_avg, nonpromo_avg. Ordered by brand.</div>`,
+  snow:"Identical. <code>CASE WHEN</code> and <code>AVG</code> are fully standard; this is a portable pattern worth memorising.",
+  check:{cols:["brand","promo_avg","nonpromo_avg"]},
+  solution:`SELECT st.brand,
+       AVG(CASE WHEN s.promo_flag = 1 THEN s.units * s.unit_price END) AS promo_avg,
+       AVG(CASE WHEN s.promo_flag = 0 THEN s.units * s.unit_price END) AS nonpromo_avg
+FROM sales s JOIN stores st ON s.store_id = st.store_id
+WHERE s.unit_price IS NOT NULL
+GROUP BY st.brand
+ORDER BY st.brand;`
+}
+];
+
+const SQL_DOCS = `
+<h3>How this engine works</h3>
+<p>Queries run on <b>SQLite</b> (compiled to WebAssembly) against the same four tables, in your browser. SQLite covers standard SQL — SELECT, JOIN, GROUP BY, HAVING, CTEs, window functions — which is the portable ~90% of any dialect. Where Snowflake differs, it's flagged below and on individual problems.</p>
+<h3>Clause order (fixed)</h3>
+<pre class="snippet">SELECT ... FROM ... JOIN ... ON ...
+WHERE ...        -- filters rows before grouping
+GROUP BY ...
+HAVING ...       -- filters groups after
+ORDER BY ...
+LIMIT ...</pre>
+<h3>Snowflake differences that matter</h3>
+<div class="snow"><b>QUALIFY</b>Snowflake filters window-function results inline: <code>SELECT ... QUALIFY ROW_NUMBER() OVER (PARTITION BY b ORDER BY r DESC) <= 3</code>. SQLite/standard SQL requires wrapping the windowed query in a subquery/CTE and filtering outside. Most common Snowflake-only idiom.</div>
+<div class="snow"><b>Dates</b>SQLite: <code>strftime('%Y-%m', d)</code>, <code>date(d, '+7 days')</code>. Snowflake: <code>DATE_TRUNC('month', d)</code>, <code>DATEADD(day, 7, d)</code>, <code>TO_VARCHAR(d,'YYYY-MM')</code>, <code>DATEDIFF(day, a, b)</code>. Logic identical, names differ.</div>
+<div class="snow"><b>Casting</b>Snowflake supports <code>expr::INT</code> shorthand and <code>TRY_CAST</code>. SQLite uses <code>CAST(expr AS INTEGER)</code>.</div>
+<div class="snow"><b>PIVOT / semi-structured</b>Snowflake has <code>PIVOT</code>, <code>LATERAL FLATTEN</code>, VARIANT/JSON columns, <code>ARRAY_AGG</code>. None exist in SQLite — do pivots with conditional aggregation (<code>SUM(CASE WHEN ...)</code>), which also works in Snowflake and is more portable.</div>
+<div class="snow"><b>Misc</b>Snowflake: <code>ILIKE</code> (case-insensitive), <code>IFF(cond,a,b)</code>, <code>NVL/COALESCE</code>, <code>LISTAGG</code>. SQLite: <code>LIKE</code> is case-insensitive for ASCII by default, use <code>CASE</code> for IFF, <code>COALESCE</code> is shared, <code>GROUP_CONCAT</code> for LISTAGG.</div>
+<h3>Portable habits (work in both)</h3>
+<pre class="snippet">COALESCE(x, 0)                       -- null handling, both
+CASE WHEN ... THEN ... ELSE ... END  -- conditional, both
+COUNT(DISTINCT x)                    -- both
+window functions OVER (PARTITION BY) -- both (just not QUALIFY in SQLite)
+conditional aggregation for pivots   -- both, avoids PIVOT syntax</pre>
+<div class="gotcha"><b>Honest scope</b>This tab drills portable SQL logic with a real engine. It will NOT teach Snowflake-specific syntax hands-on (no engine can run Snowflake locally). For QUALIFY/FLATTEN/VARIANT practice you need a Snowflake trial account. Given your test is pandas-first, portable SQL fluency is the right thing to optimise.</div>
+`;
+
+const PY_SETUP = `
+import numpy as np, pandas as pd, json, io, contextlib, traceback
+
+rng = np.random.default_rng(7)
+
+brands = ['Bunnings','Kmart','Target','Officeworks','Priceline','Catch']
+states = ['VIC','NSW','QLD','WA','SA']
+
+# ---------- stores ----------
+n_stores = 30
+stores = pd.DataFrame({
+    'store_id': ['S%03d' % i for i in range(1, n_stores + 1)],
+    'brand': rng.choice(brands, n_stores),
+    'state': rng.choice(states, n_stores, p=[0.28,0.30,0.18,0.14,0.10]),
+    'open_year': rng.integers(1995, 2023, n_stores),
+})
+# guarantee every brand has at least one store
+for i, b in enumerate(brands):
+    stores.loc[i, 'brand'] = b
+
+# ---------- products ----------
+cats = {
+ 'Bunnings': ['Power Tools','Garden','Paint'],
+ 'Kmart': ['Home','Apparel','Toys'],
+ 'Target': ['Apparel','Home','Beauty'],
+ 'Officeworks': ['Tech','Stationery','Furniture'],
+ 'Priceline': ['Beauty','Health','Vitamins'],
+ 'Catch': ['Tech','Home','Toys'],
+}
+sizes = ['S','M','L']
+rows = []
+pid = 1
+for b in brands:
+    for k in range(10):
+        cat = cats[b][k % 3]
+        name = '%s Item %02d' % (cat, pid)
+        if rng.random() < 0.5:
+            name = name + ' - ' + str(rng.choice(sizes))
+        rows.append({'product_id': 'P%03d' % pid, 'brand': b, 'category': cat,
+                     'product_name': name,
+                     'cost_price': float(np.round(rng.uniform(3, 80), 2))})
+        pid += 1
+products = pd.DataFrame(rows)
+
+# ---------- sales ----------
+never_sold = set(rng.choice(products['product_id'], 5, replace=False))
+prod_by_brand = {b: [p for p in g['product_id'] if p not in never_sold]
+                 for b, g in products.groupby('brand')}
+cost_map = products.set_index('product_id')['cost_price'].to_dict()
+store_brand = stores.set_index('store_id')['brand'].to_dict()
+
+n_sales = 4000
+dates = pd.to_datetime('2025-01-01') + pd.to_timedelta(rng.integers(0, 546, n_sales), unit='D')
+store_ids = rng.choice(stores['store_id'], n_sales)
+
+recs = []
+for i in range(n_sales):
+    sid = store_ids[i]
+    b = store_brand[sid]
+    pidc = str(rng.choice(prod_by_brand[b]))
+    promo = bool(rng.random() < 0.18)
+    markup = rng.uniform(1.3, 2.2)
+    price = cost_map[pidc] * markup * (0.8 if promo else 1.0)
+    recs.append({'sale_id': i + 1, 'date': dates[i], 'store_id': sid,
+                 'product_id': pidc, 'units': int(rng.poisson(2) + 1),
+                 'unit_price': float(np.round(price, 2)), 'promo_flag': promo})
+sales = pd.DataFrame(recs)
+
+# inject NaN prices (~60 rows)
+nan_idx = rng.choice(sales.index, 60, replace=False)
+sales.loc[nan_idx, 'unit_price'] = np.nan
+
+# inject exact duplicate rows (~40)
+dups = sales.sample(40, random_state=3)
+sales = pd.concat([sales, dups], ignore_index=True)
+sales = sales.sample(frac=1.0, random_state=5).reset_index(drop=True)
+
+# ---------- forecasts ----------
+months = pd.period_range('2025-01', '2026-06', freq='M').astype(str)
+frows = []
+for b in brands:
+    base = rng.uniform(40000, 120000)
+    for j, m in enumerate(months):
+        seas = 1.0 + 0.15 * np.sin(2 * np.pi * (j % 12) / 12.0)
+        actual = base * seas * rng.uniform(0.9, 1.1)
+        forecast = actual * (1.0 + rng.normal(0, 0.08))
+        frows.append({'month': m, 'brand': b,
+                      'actual': float(np.round(actual, 2)),
+                      'forecast': float(np.round(forecast, 2))})
+forecasts = pd.DataFrame(frows)
+
+# =========================================================
+# runner + checker
+# =========================================================
+def _fresh():
+    return {'pd': pd, 'np': np,
+            'sales': sales.copy(), 'stores': stores.copy(),
+            'products': products.copy(), 'forecasts': forecasts.copy()}
+
+def _compare(res, exp):
+    try:
+        if isinstance(exp, pd.DataFrame):
+            if not isinstance(res, pd.DataFrame):
+                return False, 'Expected a DataFrame, got %s.' % type(res).__name__
+            a = res.copy(); b = exp.copy()
+            a.index = a.index.map(str); b.index = b.index.map(str)
+            a.columns = a.columns.map(str); b.columns = b.columns.map(str)
+            pd.testing.assert_frame_equal(a.sort_index(), b.sort_index(),
+                check_like=True, check_dtype=False, check_names=False,
+                rtol=1e-2, atol=0.05)
+            return True, ''
+        if isinstance(exp, pd.Series):
+            if not isinstance(res, pd.Series):
+                return False, 'Expected a Series, got %s.' % type(res).__name__
+            a = res.copy(); b = exp.copy()
+            a.index = a.index.map(str); b.index = b.index.map(str)
+            a = a.sort_index(); b = b.sort_index()
+            if list(a.index) != list(b.index):
+                return False, 'Index mismatch. Expected index like: %s' % list(b.index)[:8]
+            pd.testing.assert_series_equal(a, b, check_dtype=False,
+                check_names=False, rtol=1e-2, atol=0.05)
+            return True, ''
+        if isinstance(exp, list):
+            if not isinstance(res, list):
+                return False, 'Expected a plain Python list.'
+            if sorted(map(str, res)) == sorted(map(str, exp)):
+                return True, ''
+            return False, 'List contents differ. Expected %d items, got %d.' % (len(exp), len(res))
+        # scalar
+        try:
+            if abs(float(res) - float(exp)) <= max(0.02, abs(float(exp)) * 0.01):
+                return True, ''
+            return False, 'Value off. Got %s.' % str(res)
+        except Exception:
+            return (str(res) == str(exp)), 'String comparison failed.' if str(res) != str(exp) else ''
+    except AssertionError as e:
+        return False, str(e)[:500]
+    except Exception as e:
+        return False, 'Comparison error: %s' % str(e)[:300]
+
+def run_attempt(user_code, sol_code):
+    buf = io.StringIO()
+    ns = _fresh()
+    try:
+        with contextlib.redirect_stdout(buf):
+            exec(user_code, ns)
+    except Exception:
+        tb = traceback.format_exc()
+        tb = tb.split('exec(user_code, ns)')[-1]
+        return json.dumps({'ok': False, 'error': tb[-1200:], 'stdout': buf.getvalue()[-1500:]})
+    if 'result' not in ns or ns['result'] is Ellipsis:
+        return json.dumps({'ok': True, 'passed': False,
+                           'message': "No 'result' variable found (or it is still ...).",
+                           'stdout': buf.getvalue()[-1500:], 'repr': ''})
+    ns2 = _fresh()
+    exec(sol_code, ns2)
+    passed, msg = _compare(ns['result'], ns2['result'])
+    rep = repr(ns['result'])
+    if len(rep) > 1800:
+        rep = rep[:1800] + '\\n... (truncated)'
+    return json.dumps({'ok': True, 'passed': bool(passed), 'message': msg,
+                       'stdout': buf.getvalue()[-1500:], 'repr': rep})
+
+def preview(name):
+    df = {'sales': sales, 'stores': stores, 'products': products, 'forecasts': forecasts}[name]
+    return df.head(8).to_string() + '\\n\\nshape: ' + str(df.shape) + '\\ndtypes:\\n' + df.dtypes.to_string()
+
+def export_tables():
+    out = {}
+    for name, df in [('sales', sales), ('stores', stores), ('products', products), ('forecasts', forecasts)]:
+        d = df.copy()
+        for c in d.columns:
+            if 'datetime' in str(d[c].dtype):
+                d[c] = d[c].dt.strftime('%Y-%m-%d')
+            if d[c].dtype == bool:
+                d[c] = d[c].astype(int)
+        d = d.where(pd.notnull(d), None)
+        out[name] = {'cols': list(d.columns), 'rows': d.values.tolist()}
+    return json.dumps(out)
+
+import ast as _ast
+import inspect as _inspect
+
+_ns_objs = {}
+
+def _build_ns():
+    if _ns_objs:
+        return
+    _ns_objs['pandas'] = pd
+    _ns_objs['DataFrame'] = pd.DataFrame
+    _ns_objs['Series'] = pd.Series
+    _ns_objs['Series.str'] = pd.Series(['a']).str
+    _ns_objs['Series.dt'] = pd.Series(pd.to_datetime(['2020-01-01'])).dt
+    _ns_objs['GroupBy'] = pd.DataFrame({'a': [1], 'b': [1]}).groupby('a')
+    _ns_objs['Index'] = pd.Index
+    _ns_objs['Rolling'] = pd.Series([1.0, 2.0]).rolling(2)
+    _ns_objs['Resampler'] = pd.Series([1.0], index=pd.to_datetime(['2020-01-01'])).resample('D')
+
+def build_docs_index():
+    _build_ns()
+    entries = []
+    for ns_name, obj in _ns_objs.items():
+        for name in dir(obj):
+            if name.startswith('_'):
+                continue
+            try:
+                attr = getattr(obj, name)
+            except Exception:
+                continue
+            if ns_name == 'pandas' and not callable(attr):
+                continue
+            try:
+                doc = _inspect.getdoc(attr) or ''
+            except Exception:
+                doc = ''
+            if not doc:
+                continue
+            summary = doc.split('\\n')[0].strip()[:160]
+            entries.append({'ns': ns_name, 'name': name, 'summary': summary})
+    return json.dumps({'version': pd.__version__, 'entries': entries})
+
+def get_doc(ns_name, name):
+    _build_ns()
+    try:
+        attr = getattr(_ns_objs[ns_name], name)
+    except Exception as e:
+        return json.dumps({'sig': ns_name + '.' + name, 'doc': 'Could not resolve: ' + str(e)})
+    doc = ''
+    try:
+        doc = _inspect.getdoc(attr) or ''
+    except Exception:
+        pass
+    if not doc:
+        doc = '(no docstring available in this build)'
+    if len(doc) > 24000:
+        doc = doc[:24000] + '\\n\\n... (truncated)'
+    sig = ns_name + '.' + name
+    try:
+        sig = sig + str(_inspect.signature(attr))
+    except Exception:
+        pass
+    return json.dumps({'sig': sig, 'doc': doc})
+
+def run_free(code):
+    buf = io.StringIO()
+    ns = _fresh()
+    try:
+        tree = _ast.parse(code)
+        last = None
+        if tree.body and isinstance(tree.body[-1], _ast.Expr):
+            last = _ast.Expression(tree.body.pop().value)
+        with contextlib.redirect_stdout(buf):
+            exec(compile(tree, '<playground>', 'exec'), ns)
+            if last is not None:
+                val = eval(compile(last, '<playground>', 'eval'), ns)
+                if val is not None:
+                    print(repr(val))
+        out = buf.getvalue()
+        if len(out) > 6000:
+            out = out[:6000] + '\\n... (truncated)'
+        if not out.strip():
+            out = '(no output - end with an expression or use print())'
+        return json.dumps({'ok': True, 'out': out})
+    except Exception:
+        tb = traceback.format_exc()
+        return json.dumps({'ok': False, 'out': buf.getvalue()[-2000:], 'err': tb[-1400:]})
+
+def run_plot(code):
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    import base64
+    buf = io.StringIO()
+    ns = _fresh()
+    ns['plt'] = plt
+    plt.close('all')
+    try:
+        with contextlib.redirect_stdout(buf):
+            exec(code, ns)
+        figs = [plt.figure(n) for n in plt.get_fignums()]
+        if not figs:
+            return json.dumps({'ok': True, 'img': '', 'out': buf.getvalue()[-1200:],
+                               'msg': 'Code ran but created no figure. Use plt.subplots() or a DataFrame .plot().'})
+        img = io.BytesIO()
+        figs[-1].savefig(img, format='png', dpi=110, bbox_inches='tight')
+        plt.close('all')
+        img.seek(0)
+        b64 = base64.b64encode(img.read()).decode()
+        return json.dumps({'ok': True, 'img': b64, 'out': buf.getvalue()[-1200:]})
+    except Exception:
+        plt.close('all')
+        tb = traceback.format_exc()
+        return json.dumps({'ok': False, 'img': '', 'err': tb[-1400:]})
+
+'ready'
+`;
+
+/* =========================================================
+   App logic
+========================================================= */
+let pyodide = null;
+let current = 0;
+let mode = 'practice';         // 'practice' | 'learn' | 'docs'
+let track = 'pandas';          // 'pandas' | 'plots' | 'sql'
+let currentLesson = 0;
+const status = {};             // problem id -> 'passed' | 'tried'
+const drafts = {};             // problem id -> code text
+const lessonDrafts = {};       // lesson id -> code text
+
+// per-track cursors
+let plCur = 0, pllCur = 0, sqCur = 0, sqlLCur = 0;
+let SQLDB = null;              // sql.js database, lazy
+let sqlLoading = false;
+
+const $ = s => document.querySelector(s);
+const log = m => { $('#loadlog').innerHTML = '<span class="spin"></span>' + m; };
+
+const TITLES = {
+  pandas: ['Pandas Stockroom', 'Wesfarmers practice set · mid-level'],
+  plots:  ['Plot Bench', 'matplotlib essentials for the test'],
+  sql:    ['Query Yard', 'portable SQL on SQLite · Snowflake diffs flagged'],
+};
+
+function setTrack(t){
+  track = t;
+  document.querySelectorAll('#tracktabs button').forEach(b => b.classList.toggle('on', b.dataset.track === t));
+  $('#app-title').textContent = TITLES[t][0];
+  $('#app-sub').textContent = TITLES[t][1];
+  $('#progress').style.display = t === 'pandas' ? '' : 'none';
+  setMode(mode);
+}
+
+function hideAllCards(){
+  ['practice-card','learn-card','docs-card',
+   'plots-practice-card','plots-learn-card','plots-docs-card',
+   'sql-practice-card','sql-learn-card','sql-docs-card'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.style.display = 'none';
+  });
+}
+
+function setMode(m){
+  mode = m;
+  document.querySelectorAll('#modetabs button').forEach(b => b.classList.toggle('on', b.dataset.m === m));
+  hideAllCards();
+  if (track === 'pandas'){
+    if (m === 'practice') $('#practice-card').style.display = 'block';
+    if (m === 'learn') $('#learn-card').style.display = 'block';
+    if (m === 'docs'){ $('#docs-card').style.display = 'block'; if (!docsIndex) buildDocsIndex(); }
+  } else if (track === 'plots'){
+    if (m === 'practice'){ $('#plots-practice-card').style.display = 'block'; loadPlot(plCur); }
+    if (m === 'learn'){ $('#plots-learn-card').style.display = 'block'; loadPlotLesson(pllCur); }
+    if (m === 'docs'){ $('#plots-docs-card').style.display = 'block'; $('#pl-docs-body').innerHTML = PLOT_DOCS; }
+  } else if (track === 'sql'){
+    ensureSQL();
+    if (m === 'practice'){ $('#sql-practice-card').style.display = 'block'; loadSQL(sqCur); }
+    if (m === 'learn'){ $('#sql-learn-card').style.display = 'block'; loadSQLLesson(sqlLCur); }
+    if (m === 'docs'){ $('#sql-docs-card').style.display = 'block'; $('#sql-docs-body').innerHTML = SQL_DOCS; }
+  }
+  buildRail();
+}
+
+async function boot(){
+  try{
+    log('fetching Pyodide runtime…');
+    pyodide = await loadPyodide({ indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/' });
+    log('runtime up — installing numpy + pandas… (the slow bit)');
+    await pyodide.loadPackage(['numpy','pandas']);
+    log('generating Wesfarmers-flavoured fake data…');
+    await pyodide.runPythonAsync(PY_SETUP);
+    $('#loader').style.display = 'none';
+    $('#app').classList.add('ready');
+    buildRail();
+    loadProblem(0);
+    loadLesson(0);
+    setMode('practice');
+  }catch(e){
+    $('#loadlog').innerHTML = 'Failed to load the Python runtime: ' + (e.message || e) +
+      '<br><br>Pyodide loads from cdn.jsdelivr.net — check that it is reachable, then reload.';
+  }
+}
+
+function buildRail(){
+  const rail = $('#rail');
+  rail.innerHTML = '';
+  if (track === 'plots'){ buildTrackRail(rail, mode === 'learn' ? PLOT_LESSONS : PLOT_PROBLEMS,
+      mode === 'learn' ? pllCur : plCur, mode === 'learn' ? 'PMOD-' : 'PLOT-',
+      mode === 'learn' ? loadPlotLesson : loadPlot, mode === 'learn' ? 'Plot lessons' : 'Plot problems', mode); return; }
+  if (track === 'sql'){ buildTrackRail(rail, mode === 'learn' ? SQL_LESSONS : SQL_PROBLEMS,
+      mode === 'learn' ? sqlLCur : sqCur, mode === 'learn' ? 'SMOD-' : 'SQL-',
+      mode === 'learn' ? loadSQLLesson : loadSQL, mode === 'learn' ? 'SQL lessons' : 'SQL problems', mode); return; }
+  if (mode === 'practice'){
+    document.querySelector('.rail-title').textContent = 'Problem dockets';
+    let lastTier = null;
+    PROBLEMS.forEach((p, i) => {
+      const tier = p.tier || 'mid';
+      if (tier !== lastTier){
+        const h = document.createElement('div');
+        h.className = 'rail-sec';
+        h.textContent = tier === 'foundation' ? 'Foundations — step by step' : 'Mid-level — combine the steps';
+        rail.appendChild(h);
+        lastTier = tier;
+      }
+      const b = document.createElement('button');
+      b.className = 'docket-item' + (i === current ? ' active' : '');
+      b.innerHTML = '<span class="sku">' + (p.id.startsWith('F') ? p.id : 'SKU-' + p.id) + '</span><span class="t">' + p.title + '</span><span class="dot"></span>';
+      if (status[p.id]) b.classList.add(status[p.id]);
+      b.onclick = () => loadProblem(i);
+      rail.appendChild(b);
+    });
+  } else if (mode === 'learn'){
+    document.querySelector('.rail-title').textContent = 'Lesson modules';
+    LESSONS.forEach((l, i) => {
+      const b = document.createElement('button');
+      b.className = 'docket-item' + (i === currentLesson ? ' active' : '');
+      b.innerHTML = '<span class="sku">MOD-' + l.id + '</span><span class="t">' + l.title + '</span><span class="dot"></span>';
+      b.onclick = () => loadLesson(i);
+      rail.appendChild(b);
+    });
+  } else {
+    document.querySelector('.rail-title').textContent = 'Namespaces';
+    docNamespaces().forEach(ns => {
+      const b = document.createElement('button');
+      b.className = 'docket-item' + (docsNs === ns ? ' active' : '');
+      b.innerHTML = '<span class="t"></span><span class="dot"></span>';
+      b.querySelector('.t').textContent = ns;
+      b.onclick = () => { docsNs = ns; buildRail(); renderDocResults(); };
+      rail.appendChild(b);
+    });
+  }
+  const done = Object.values(status).filter(v => v === 'passed').length;
+  $('#progress').textContent = done + ' / ' + PROBLEMS.length + ' cleared';
+}
+
+function buildTrackRail(rail, items, cur, prefix, loader, title, m){
+  document.querySelector('.rail-title').textContent = title;
+  if (m === 'docs'){ return; }
+  items.forEach((it, i) => {
+    const b = document.createElement('button');
+    b.className = 'docket-item' + (i === cur ? ' active' : '');
+    b.innerHTML = '<span class="sku">' + prefix + it.id + '</span><span class="t">' + it.title + '</span><span class="dot"></span>';
+    if (status[prefix + it.id]) b.classList.add(status[prefix + it.id]);
+    b.onclick = () => loader(i);
+    rail.appendChild(b);
+  });
+}
+
+// -------- PLOTS loaders/runners --------
+function loadPlot(i){
+  plCur = i; const p = PLOT_PROBLEMS[i];
+  $('#pl-sku').textContent = 'PLOT-' + p.id;
+  $('#pl-title').textContent = p.title;
+  $('#pl-topic').textContent = p.topic;
+  $('#pl-statement').innerHTML = p.statement;
+  $('#pl-fname').textContent = 'plot_' + p.id + '.py';
+  $('#pl-editor').value = drafts['PL'+p.id] || '# plt, pd, np and the tables are in scope\\n# create a figure with plt.subplots()\\n\\n';
+  $('#pl-solcode').textContent = p.solution;
+  $('#pl-solbox').style.display = 'none';
+  $('#pl-output').style.display = 'none';
+  buildRail();
+}
+function loadPlotLesson(i){
+  pllCur = i; const l = PLOT_LESSONS[i];
+  $('#pll-sku').textContent = 'PMOD-' + l.id;
+  $('#pll-title').textContent = l.title;
+  $('#pll-body').innerHTML = l.body;
+  $('#pll-editor').value = lessonDrafts['PLL'+l.id] || l.demo;
+  $('#pll-output').style.display = 'none';
+  buildRail();
+}
+async function renderPlotTo(code, wrapId, errId, outId){
+  if (!pyodide) return;
+  await pyodide.loadPackage('matplotlib');
+  pyodide.globals.set('plot_code', code);
+  const raw = await pyodide.runPythonAsync('run_plot(plot_code)');
+  const r = JSON.parse(raw);
+  document.getElementById(outId).style.display = 'block';
+  const wrap = document.getElementById(wrapId), err = document.getElementById(errId);
+  if (r.ok && r.img){
+    wrap.innerHTML = '<img alt="figure" style="max-width:100%" src="data:image/png;base64,' + r.img + '">';
+    wrap.style.display = 'block'; err.style.display = 'none';
+  } else if (r.ok && r.msg){
+    wrap.innerHTML = ''; err.style.display = 'block'; err.textContent = r.msg;
+  } else {
+    wrap.innerHTML = ''; err.style.display = 'block'; err.textContent = r.err || 'Unknown error';
+  }
+}
+async function runPlot(){
+  const btn = $('#pl-run'); btn.disabled = true; btn.textContent = 'Rendering…';
+  drafts['PL'+PLOT_PROBLEMS[plCur].id] = $('#pl-editor').value;
+  try { await renderPlotTo($('#pl-editor').value, 'pl-figwrap', 'pl-err', 'pl-output');
+        status['PLOT-'+PLOT_PROBLEMS[plCur].id] = 'passed'; buildRail(); }
+  catch(e){ $('#pl-output').style.display='block'; $('#pl-err').style.display='block'; $('#pl-err').textContent = 'Runner error: ' + (e.message||e); }
+  finally { btn.disabled = false; btn.innerHTML = 'Run &amp; render'; }
+}
+async function runPlotLesson(){
+  const btn = $('#pll-run'); btn.disabled = true; btn.textContent = 'Rendering…';
+  lessonDrafts['PLL'+PLOT_LESSONS[pllCur].id] = $('#pll-editor').value;
+  try { await renderPlotTo($('#pll-editor').value, 'pll-figwrap', 'pll-err', 'pll-output'); }
+  catch(e){ $('#pll-output').style.display='block'; $('#pll-err').style.display='block'; $('#pll-err').textContent = 'Runner error: ' + (e.message||e); }
+  finally { btn.disabled = false; btn.textContent = 'Render'; }
+}
+
+// -------- SQL engine (sql.js, lazy) --------
+async function ensureSQL(){
+  if (SQLDB || sqlLoading) return;
+  sqlLoading = true;
+  try {
+    if (!window.initSqlJs){
+      await new Promise((res, rej) => {
+        const sc = document.createElement('script');
+        sc.src = 'https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/sql-wasm.js';
+        sc.onload = res; sc.onerror = () => rej(new Error('sql.js failed to load from jsDelivr'));
+        document.head.appendChild(sc);
+      });
+    }
+    const SQL = await window.initSqlJs({ locateFile: f => 'https://cdn.jsdelivr.net/npm/sql.js@1.10.3/dist/' + f });
+    SQLDB = new SQL.Database();
+    const raw = await pyodide.runPythonAsync('export_tables()');
+    const data = JSON.parse(raw);
+    for (const [name, tbl] of Object.entries(data)){
+      const cols = tbl.cols.map(c => '"' + c + '"').join(', ');
+      SQLDB.run('CREATE TABLE ' + name + ' (' + tbl.cols.map(c => '"'+c+'"').join(', ') + ');');
+      const stmt = SQLDB.prepare('INSERT INTO ' + name + ' VALUES (' + tbl.cols.map(() => '?').join(',') + ')');
+      SQLDB.run('BEGIN');
+      tbl.rows.forEach(r => { stmt.run(r); });
+      SQLDB.run('COMMIT');
+      stmt.free();
+    }
+  } catch(e){
+    SQLDB = 'error:' + (e.message || e);
+  } finally { sqlLoading = false; }
+}
+function runSQLQuery(sql){
+  if (typeof SQLDB === 'string' && SQLDB.startsWith('error:'))
+    return { error: 'SQL engine unavailable: ' + SQLDB.slice(6) + '. sql.js loads from cdn.jsdelivr.net — check network.' };
+  if (!SQLDB) return { error: 'SQL engine still loading — try again in a moment.' };
+  try {
+    const res = SQLDB.exec(sql);
+    if (!res.length) return { cols: [], rows: [] };
+    return { cols: res[0].columns, rows: res[0].values };
+  } catch(e){ return { error: e.message }; }
+}
+function renderTable(container, cols, rows, cap){
+  if (!cols.length){ container.innerHTML = '<div style="padding:8px;font-family:var(--mono);font-size:12px;color:var(--ink-soft)">Query ran; no rows returned.</div>'; return; }
+  const shown = rows.slice(0, 100);
+  let h = '<table class="res"><thead><tr>' + cols.map(c => '<th>'+c+'</th>').join('') + '</tr></thead><tbody>';
+  h += shown.map(r => '<tr>' + r.map(v => '<td>' + (v === null ? '<i style="color:#aaa">NULL</i>' : v) + '</td>').join('') + '</tr>').join('');
+  h += '</tbody></table>';
+  if (rows.length > 100) h += '<div style="font-family:var(--mono);font-size:11px;color:var(--ink-soft);margin-top:4px">' + rows.length + ' rows, showing 100</div>';
+  container.innerHTML = h;
+}
+function loadSQL(i){
+  sqCur = i; const p = SQL_PROBLEMS[i];
+  $('#sq-sku').textContent = 'SQL-' + p.id;
+  $('#sq-title').textContent = p.title;
+  $('#sq-topic').textContent = p.topic;
+  $('#sq-statement').innerHTML = p.statement;
+  if (p.snow){ $('#sq-snow').style.display = 'block'; $('#sq-snow').innerHTML = '<b>Snowflake difference</b>' + p.snow; }
+  else $('#sq-snow').style.display = 'none';
+  $('#sq-editor').value = drafts['SQ'+p.id] || '-- write your query\\nSELECT ';
+  $('#sq-solcode').textContent = p.solution;
+  $('#sq-solbox').style.display = 'none';
+  $('#sq-output').style.display = 'none';
+  buildRail();
+}
+function loadSQLLesson(i){
+  sqlLCur = i; const l = SQL_LESSONS[i];
+  $('#sql-sku').textContent = 'SMOD-' + l.id;
+  $('#sql-l-title').textContent = l.title;
+  $('#sql-l-body').innerHTML = l.body;
+  $('#sql-l-editor').value = lessonDrafts['SQLL'+l.id] || l.demo;
+  $('#sql-l-output').style.display = 'none';
+  buildRail();
+}
+async function runSQL(){
+  await ensureSQL();
+  const p = SQL_PROBLEMS[sqCur];
+  drafts['SQ'+p.id] = $('#sq-editor').value;
+  const r = runSQLQuery($('#sq-editor').value);
+  $('#sq-output').style.display = 'block';
+  const v = $('#sq-verdict'), errEl = $('#sq-err'), lbl = $('#sq-outlabel');
+  if (r.error){
+    v.className = 'verdict fail'; v.textContent = '✗ Error';
+    errEl.style.display = 'block'; errEl.textContent = r.error;
+    $('#sq-table').innerHTML = ''; lbl.style.display = 'none';
+    status['SQL-'+p.id] = 'tried'; buildRail(); return;
+  }
+  errEl.style.display = 'none'; lbl.style.display = 'block';
+  renderTable($('#sq-table'), r.cols, r.rows);
+  // light check: expected columns present (order-insensitive), row count if specified
+  let pass = true, msg = '';
+  if (p.check){
+    const want = p.check.cols.map(c => c.toLowerCase());
+    const got = r.cols.map(c => c.toLowerCase());
+    const missing = want.filter(c => !got.includes(c));
+    if (missing.length){ pass = false; msg = 'Missing expected column(s): ' + missing.join(', '); }
+    if (pass && p.check.rows && r.rows.length !== p.check.rows){ pass = false; msg = 'Expected ' + p.check.rows + ' rows, got ' + r.rows.length; }
+  }
+  if (pass){ v.className = 'verdict pass'; v.textContent = '✓ Ran — ' + r.rows.length + ' rows, expected columns present'; status['SQL-'+p.id] = 'passed'; }
+  else { v.className = 'verdict fail'; v.textContent = '✗ ' + msg; status['SQL-'+p.id] = 'tried'; }
+  buildRail();
+}
+async function runSQLLesson(){
+  await ensureSQL();
+  lessonDrafts['SQLL'+SQL_LESSONS[sqlLCur].id] = $('#sql-l-editor').value;
+  const r = runSQLQuery($('#sql-l-editor').value);
+  $('#sql-l-output').style.display = 'block';
+  const errEl = $('#sql-l-err');
+  if (r.error){ errEl.style.display = 'block'; errEl.textContent = r.error; $('#sql-l-table').innerHTML = ''; return; }
+  errEl.style.display = 'none';
+  renderTable($('#sql-l-table'), r.cols, r.rows);
+}
+
+function loadLesson(i){
+  lessonDrafts[LESSONS[currentLesson].id] = $('#l-editor').value;
+  currentLesson = i;
+  const l = LESSONS[i];
+  $('#l-sku').textContent = 'MOD-' + l.id;
+  $('#l-title').textContent = l.title;
+  $('#l-body').innerHTML = l.body;
+  $('#l-editor').value = lessonDrafts[l.id] || l.demo;
+  $('#l-output').style.display = 'none';
+  if (mode === 'learn') buildRail();
+}
+
+async function runLesson(){
+  if (!pyodide) return;
+  const btn = $('#l-run');
+  btn.disabled = true; btn.textContent = 'Running…';
+  try{
+    pyodide.globals.set('free_code', $('#l-editor').value);
+    const raw = await pyodide.runPythonAsync('run_free(free_code)');
+    const r = JSON.parse(raw);
+    $('#l-output').style.display = 'block';
+    const out = $('#l-out');
+    out.classList.toggle('err', !r.ok);
+    out.textContent = r.ok ? r.out : ((r.out ? r.out + '\n' : '') + r.err);
+  }catch(e){
+    $('#l-output').style.display = 'block';
+    $('#l-out').classList.add('err');
+    $('#l-out').textContent = 'Runner error: ' + (e.message || e);
+  }finally{
+    btn.disabled = false; btn.textContent = 'Run';
+  }
+}
+
+/* =========================================================
+   Docs browser
+========================================================= */
+let docsIndex = null;        // {version, entries:[{ns,name,summary}]}
+let docsNs = 'All';
+let docsSelected = null;
+
+async function buildDocsIndex(){
+  $('#doc-count').textContent = 'indexing…';
+  try{
+    const raw = await pyodide.runPythonAsync('build_docs_index()');
+    docsIndex = JSON.parse(raw);
+    $('#doc-count').textContent = docsIndex.entries.length + ' entries · pandas ' + docsIndex.version;
+    buildRail();
+    renderDocResults();
+  }catch(e){
+    $('#doc-count').textContent = 'index failed';
+    $('#doc-results').innerHTML = '<div style="padding:12px;font-size:13px">Could not build the doc index: ' + (e.message || e) + '</div>';
+  }
+}
+
+function docNamespaces(){
+  const seen = ['All'];
+  if (docsIndex) docsIndex.entries.forEach(e => { if (!seen.includes(e.ns)) seen.push(e.ns); });
+  return seen;
+}
+
+function renderDocResults(){
+  if (!docsIndex) return;
+  const q = $('#doc-search').value.trim().toLowerCase();
+  let hits = docsIndex.entries.filter(e =>
+    (docsNs === 'All' || e.ns === docsNs) &&
+    (!q || e.name.toLowerCase().includes(q) || e.summary.toLowerCase().includes(q))
+  );
+  if (q){
+    hits.sort((a, b) => {
+      const as = a.name.toLowerCase().startsWith(q) ? 0 : 1;
+      const bs = b.name.toLowerCase().startsWith(q) ? 0 : 1;
+      return as - bs || a.name.localeCompare(b.name);
+    });
+  }
+  const total = hits.length;
+  hits = hits.slice(0, 80);
+  const box = $('#doc-results');
+  box.innerHTML = '';
+  hits.forEach(e => {
+    const b = document.createElement('button');
+    b.className = 'doc-row' + (docsSelected === e.ns + '.' + e.name ? ' on' : '');
+    b.innerHTML = '<span class="nm">' + e.ns + '.' + e.name + '</span><span class="sm"></span>';
+    b.querySelector('.sm').textContent = e.summary;
+    b.onclick = () => showDoc(e.ns, e.name);
+    box.appendChild(b);
+  });
+  if (total > 80){
+    const d = document.createElement('div');
+    d.style.cssText = 'padding:8px 12px;font-size:12px;color:var(--ink-soft);font-family:var(--mono)';
+    d.textContent = total + ' matches — showing 80, refine the search';
+    box.appendChild(d);
+  }
+  if (total === 0){
+    box.innerHTML = '<div style="padding:12px;font-size:13px;color:var(--ink-soft)">No matches for that search' + (docsNs !== 'All' ? ' in ' + docsNs + ' — try All namespaces' : '') + '.</div>';
+  }
+}
+
+async function showDoc(ns, name){
+  docsSelected = ns + '.' + name;
+  renderDocResults();
+  pyodide.globals.set('doc_ns', ns);
+  pyodide.globals.set('doc_name', name);
+  try{
+    const raw = await pyodide.runPythonAsync('get_doc(doc_ns, doc_name)');
+    const r = JSON.parse(raw);
+    $('#doc-sig').style.display = 'block';
+    $('#doc-sig').textContent = r.sig;
+    $('#doc-body').style.display = 'block';
+    $('#doc-body').textContent = r.doc;
+  }catch(e){
+    $('#doc-body').style.display = 'block';
+    $('#doc-body').textContent = 'Failed to fetch docstring: ' + (e.message || e);
+  }
+}
+
+function loadProblem(i){
+  drafts[PROBLEMS[current].id] = $('#editor').value;
+  current = i;
+  const p = PROBLEMS[i];
+  $('#p-sku').textContent = p.id.startsWith('F') ? p.id : 'SKU-' + p.id;
+  $('#p-title').textContent = p.title;
+  $('#p-topic').textContent = p.topic;
+  $('#p-statement').innerHTML = p.statement;
+  $('#fname').textContent = 'attempt_' + p.id + '.py';
+  $('#editor').value = drafts[p.id] || STARTER;
+  $('#hintbox').style.display = 'none';
+  $('#hintbox').textContent = p.hint;
+  $('#solbox').style.display = 'none';
+  $('#solcode').textContent = p.solution;
+  $('#output').style.display = 'none';
+  buildRail();
+}
+
+async function run(){
+  if (!pyodide) return;
+  const p = PROBLEMS[current];
+  const btn = $('#run');
+  btn.disabled = true; btn.textContent = 'Running…';
+  try{
+    pyodide.globals.set('u_code', $('#editor').value);
+    pyodide.globals.set('s_code', p.solution);
+    const raw = await pyodide.runPythonAsync('run_attempt(u_code, s_code)');
+    const r = JSON.parse(raw);
+    $('#output').style.display = 'block';
+    const v = $('#verdict');
+    const so = $('#stdout'), sl = $('#stdout-label');
+    const rp = $('#repr'), rl = $('#repr-label');
+    so.style.display = 'none'; sl.style.display = 'none';
+    rp.style.display = 'none'; rl.style.display = 'none';
+    rp.classList.remove('err'); so.classList.remove('err');
+
+    if (!r.ok){
+      v.className = 'verdict fail';
+      v.textContent = '✗ Error — traceback below';
+      rl.style.display = 'block'; rl.textContent = 'traceback';
+      rp.style.display = 'block'; rp.classList.add('err'); rp.textContent = r.error;
+      if (r.stdout){ sl.style.display='block'; so.style.display='block'; so.textContent = r.stdout; }
+      mark(p.id, 'tried');
+    } else if (r.passed){
+      v.className = 'verdict pass';
+      v.textContent = '✓ Cleared — matches the reference output';
+      if (r.repr){ rl.style.display='block'; rp.style.display='block'; rp.textContent = r.repr; }
+      if (r.stdout){ sl.style.display='block'; so.style.display='block'; so.textContent = r.stdout; }
+      mark(p.id, 'passed');
+    } else {
+      v.className = 'verdict fail';
+      v.textContent = '✗ Not yet — ' + (r.message || 'output does not match');
+      if (r.repr){ rl.style.display='block'; rp.style.display='block'; rp.textContent = r.repr; }
+      if (r.stdout){ sl.style.display='block'; so.style.display='block'; so.textContent = r.stdout; }
+      mark(p.id, 'tried');
+    }
+  }catch(e){
+    $('#output').style.display = 'block';
+    $('#verdict').className = 'verdict fail';
+    $('#verdict').textContent = '✗ Runner error: ' + (e.message || e);
+  }finally{
+    btn.disabled = false; btn.innerHTML = 'Run &amp; check';
+  }
+}
+
+function mark(id, s){
+  if (status[id] === 'passed') { buildRail(); return; }
+  status[id] = s;
+  buildRail();
+}
+
+/* preview tabs */
+document.querySelectorAll('#ptabs button').forEach(b => {
+  b.onclick = async () => {
+    document.querySelectorAll('#ptabs button').forEach(x => x.classList.remove('on'));
+    b.classList.add('on');
+    const t = b.dataset.t;
+    pyodide.globals.set('t_name', t);
+    const txt = await pyodide.runPythonAsync('preview(t_name)');
+    const pv = $('#preview');
+    pv.style.display = 'block';
+    pv.textContent = txt;
+  };
+});
+
+$('#run').onclick = run;
+$('#hintbtn').onclick = () => { const h = $('#hintbox'); h.style.display = h.style.display === 'block' ? 'none' : 'block'; };
+$('#solbtn').onclick = () => { const s = $('#solbox'); s.style.display = s.style.display === 'block' ? 'none' : 'block'; };
+$('#resetbtn').onclick = () => { $('#editor').value = STARTER; };
+
+document.querySelectorAll('#modetabs button').forEach(b => { b.onclick = () => setMode(b.dataset.m); });
+$('#l-run').onclick = runLesson;
+$('#l-reset').onclick = () => { $('#l-editor').value = LESSONS[currentLesson].demo; };
+$('#doc-search').addEventListener('input', renderDocResults);
+
+// track tabs
+document.querySelectorAll('#tracktabs button').forEach(b => { b.onclick = () => setTrack(b.dataset.track); });
+
+// plots track buttons
+$('#pl-run').onclick = runPlot;
+$('#pl-sol-btn').onclick = () => { const s = $('#pl-solbox'); s.style.display = s.style.display === 'block' ? 'none' : 'block'; };
+$('#pl-reset').onclick = () => { $('#pl-editor').value = '# plt, pd, np and the tables are in scope\\n\\n'; };
+$('#pll-run').onclick = runPlotLesson;
+$('#pll-reset').onclick = () => { $('#pll-editor').value = PLOT_LESSONS[pllCur].demo; };
+
+// sql track buttons
+$('#sq-run').onclick = runSQL;
+$('#sq-sol-btn').onclick = () => { const s = $('#sq-solbox'); s.style.display = s.style.display === 'block' ? 'none' : 'block'; };
+$('#sq-reset').onclick = () => { $('#sq-editor').value = '-- write your query\\nSELECT '; };
+$('#sql-l-run').onclick = runSQLLesson;
+$('#sql-l-reset').onclick = () => { $('#sql-l-editor').value = SQL_LESSONS[sqlLCur].demo; };
+
+// shared editor behaviour (tab inserts spaces, ctrl/cmd+enter runs) for new editors
+function wireEditor(id, runFn){
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('keydown', e => {
+    if (e.key === 'Tab'){
+      e.preventDefault();
+      const t = e.target, s = t.selectionStart;
+      t.value = t.value.slice(0, s) + '    ' + t.value.slice(t.selectionEnd);
+      t.selectionStart = t.selectionEnd = s + 4;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter'){ e.preventDefault(); runFn(); }
+  });
+}
+wireEditor('pl-editor', runPlot);
+wireEditor('pll-editor', runPlotLesson);
+wireEditor('sq-editor', runSQL);
+wireEditor('sql-l-editor', runSQLLesson);
+
+$('#l-editor').addEventListener('keydown', e => {
+  if (e.key === 'Tab'){
+    e.preventDefault();
+    const t = e.target, s = t.selectionStart;
+    t.value = t.value.slice(0, s) + '    ' + t.value.slice(t.selectionEnd);
+    t.selectionStart = t.selectionEnd = s + 4;
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter'){ e.preventDefault(); runLesson(); }
+});
+
+$('#editor').addEventListener('keydown', e => {
+  if (e.key === 'Tab'){
+    e.preventDefault();
+    const t = e.target, s = t.selectionStart;
+    t.value = t.value.slice(0, s) + '    ' + t.value.slice(t.selectionEnd);
+    t.selectionStart = t.selectionEnd = s + 4;
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter'){ e.preventDefault(); run(); }
+});
+</script>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js" onload="boot()"
+        onerror="document.getElementById('loadlog').textContent='Could not fetch Pyodide from cdn.jsdelivr.net — check network and reload.'"></script>
+</body>
+</html>
